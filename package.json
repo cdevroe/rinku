@@ -1,0 +1,25 @@
+{
+  "name": "rinku",
+  "productName": "Rinku",
+  "version": "0.1.0",
+  "license": "MIT",
+  "author": "Colin Devroe <colin@cdevroe.com> (https://cdevroe.com)",
+  "main": "main.js",
+  "bin": {
+    "rinku": "./bin/rinku.js"
+  },
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "cli": "node ./bin/rinku.js",
+    "mcp:server": "node ./main.js --mcp-server",
+    "test": "node scripts/test-core.js && node scripts/test-import-unmark.js && node scripts/test-cli.js && node scripts/test-mcp.js",
+    "test:core": "node scripts/test-core.js",
+    "test:import-unmark": "node scripts/test-import-unmark.js",
+    "test:cli": "node scripts/test-cli.js",
+    "test:mcp": "node scripts/test-mcp.js"
+  },
+  "devDependencies": {
+    "electron": "^40.10.1"
+  }
+}

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rinku</title>
+  <link rel="stylesheet" href="./static/styles.css">
+  <script defer src="./app/app.js"></script>
+</head>
+<body>
+  <aside class="rail" aria-label="Primary">
+    <button id="libraryButton" class="railButton active" title="Libraries" aria-label="Libraries">☰</button>
+    <button id="allLinksButton" class="railButton" title="All active links" aria-label="All links">≡</button>
+    <button id="archiveButton" class="railButton" title="Archive" aria-label="Archive">✓</button>
+  </aside>
+
+  <section class="sidebar" aria-label="Filters">
+    <header class="sidebarHeader">
+      <h1>Rinku</h1>
+      <div id="libraryPath" class="libraryPath">No library open</div>
+    </header>
+
+    <div class="libraryActions">
+      <button id="openLibrary">Open</button>
+      <button id="createLibrary">Create</button>
+      <button id="importUnmark" disabled>Import</button>
+    </div>
+
+    <div class="filterGroup">
+      <h2>Labels</h2>
+      <div id="labelFilters" class="filterList"></div>
+    </div>
+
+    <div class="filterGroup">
+      <h2>Review</h2>
+      <button class="filterRow" data-review="30">Older than 30 days</button>
+      <button class="filterRow" data-review="90">Older than 90 days</button>
+      <button class="filterRow" data-review="unlabeled">Unlabeled</button>
+    </div>
+  </section>
+
+  <main class="workspace">
+    <header class="toolbar">
+      <form id="quickAddForm" class="quickAdd">
+        <input id="quickAddUrl" type="url" placeholder="Paste a link" autocomplete="off">
+        <input id="quickAddTitle" type="text" placeholder="Title" autocomplete="off">
+        <select id="quickAddLabel" aria-label="Label"></select>
+        <button type="submit">Add</button>
+      </form>
+      <input id="search" class="search" type="search" placeholder="Search links" autocomplete="off">
+    </header>
+
+    <section class="content">
+      <section class="linksPane" aria-label="Links">
+        <header class="listHeader">
+          <h2 id="listTitle">Links</h2>
+          <span id="listCount">0</span>
+        </header>
+        <div id="linksList" class="linksList"></div>
+      </section>
+
+      <section class="detailPane" aria-label="Link detail">
+        <div id="emptyDetail" class="emptyDetail">Select a link.</div>
+        <article id="linkDetail" class="linkDetail hidden">
+          <div class="detailTop">
+            <div>
+              <div id="detailDomain" class="detailDomain"></div>
+              <h2 id="detailTitle"></h2>
+            </div>
+            <button id="detailOpen">Open</button>
+          </div>
+          <div class="detailUrl" id="detailUrl"></div>
+          <div class="detailMeta">
+            <label>Label <select id="detailLabel"></select></label>
+            <label>Contexts <input id="detailContexts" type="text" placeholder="@Home, @Work"></label>
+            <label>Tags <input id="detailTags" type="text" placeholder="tag, another-tag"></label>
+          </div>
+          <label class="notesLabel">Notes</label>
+          <textarea id="detailBody" class="notes"></textarea>
+          <div class="detailActions">
+            <button id="saveDetail">Save</button>
+            <button id="archiveDetail">Archive</button>
+          </div>
+        </article>
+      </section>
+    </section>
+  </main>
+
+  <div id="status" class="status" role="status" aria-live="polite"></div>
+</body>
+</html>
+
