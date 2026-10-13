@@ -13,7 +13,7 @@ Rinku is a local-first link library for people who want durable, inspectable boo
 
 ## Primary Workflows
 
-- Capture a link from the desktop app, CLI, or optional local HTTP endpoint.
+- Capture a link from the desktop app, app URL scheme, CLI, or optional local HTTP endpoint/bookmarklet.
 - Review and edit title, notes, label, and contexts.
 - Let learned label rules suggest or apply a label, with settings to disable or adjust that behavior.
 - Browse or search active links by library, label, context, title, URL, and notes.
@@ -22,7 +22,8 @@ Rinku is a local-first link library for people who want durable, inspectable boo
 
 ## V1 Boundaries
 
-- Safari capture is not required for v1.
+- Packaged macOS builds include optional Safari capture through a bundled native extension.
 - A hosted sync service is not assumed.
 - Multi-label links are not supported. Use one label plus multiple contexts.
 - The local HTTP capture endpoint is optional, local-only, and should not be required for normal app use.
+- Native platform share-sheet capture is a packaging-level follow-up, not core library behavior.

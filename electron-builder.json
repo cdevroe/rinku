@@ -1,0 +1,62 @@
+{
+  "appId": "com.cdevroe.rinku",
+  "productName": "Rinku",
+  "artifactName": "rinku_${version}_${os}_${arch}.${ext}",
+  "files": [
+    "app/**",
+    "bin/**",
+    "lib/**",
+    "static/**",
+    "index.html",
+    "main.js",
+    "preload.js",
+    "package.json",
+    "build/icon-macos.png",
+    "!**/*.map",
+    "!**/.DS_Store",
+    "!dist/**",
+    "!node_modules/.cache/**"
+  ],
+  "protocols": [
+    {
+      "name": "Rinku Capture",
+      "schemes": ["rinku"]
+    }
+  ],
+  "win": {
+    "target": [
+      { "target": "nsis", "arch": ["x64", "arm64"] }
+    ],
+    "icon": "build/icon.ico"
+  },
+  "nsis": {
+    "artifactName": "rinku_${version}_${os}.${ext}",
+    "buildUniversalInstaller": true
+  },
+  "mac": {
+    "category": "public.app-category.productivity",
+    "target": ["dmg", "zip"],
+    "icon": "build/icon.icns",
+    "hardenedRuntime": true,
+    "entitlements": "build/entitlements.mac.plist",
+    "entitlementsInherit": "build/entitlements.mac.plist",
+    "gatekeeperAssess": false,
+    "sign": "scripts/sign-mac.js"
+  },
+  "linux": {
+    "target": ["AppImage", "deb", "rpm"],
+    "category": "Utility",
+    "icon": "build/icons"
+  },
+  "afterPack": "scripts/bundle-safari.js",
+  "afterSign": "scripts/notarize.js",
+  "asar": true,
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "cdevroe",
+      "repo": "rinku",
+      "releaseType": "draft"
+    }
+  ]
+}

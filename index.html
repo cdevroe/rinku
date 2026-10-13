@@ -5,88 +5,137 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Rinku</title>
   <link rel="stylesheet" href="./static/styles.css">
+  <script defer src="./lib/keyboardCommands.js"></script>
   <script defer src="./app/app.js"></script>
 </head>
 <body>
   <aside class="rail" aria-label="Primary">
-    <button id="libraryButton" class="railButton active" title="Libraries" aria-label="Libraries">☰</button>
-    <button id="allLinksButton" class="railButton" title="All active links" aria-label="All links">≡</button>
-    <button id="archiveButton" class="railButton" title="Archive" aria-label="Archive">✓</button>
+    <div class="brandMark" aria-hidden="true">
+      <span></span>
+    </div>
+    <button id="allLinksButton" class="railButton active" type="button" title="Links" aria-label="Links"></button>
+    <button id="settingsButton" class="railButton railButtonBottom" type="button" title="Settings" aria-label="Settings"></button>
   </aside>
 
-  <section class="sidebar" aria-label="Filters">
+  <section class="sidebar" aria-label="Navigation">
     <header class="sidebarHeader">
-      <h1>Rinku</h1>
-      <div id="libraryPath" class="libraryPath">No library open</div>
+      <div>
+        <h1>Rinku</h1>
+        <button id="libraryPath" class="libraryPath" type="button" title="Open library settings">No library open</button>
+      </div>
     </header>
 
-    <div class="libraryActions">
-      <button id="openLibrary">Open</button>
-      <button id="createLibrary">Create</button>
-      <button id="importUnmark" disabled>Import</button>
+    <div class="sideTitle">
+      <div>
+        <span id="sideKicker">Browse</span>
+        <h2 id="sideTitle">Labels</h2>
+      </div>
     </div>
 
-    <div class="filterGroup">
-      <h2>Labels</h2>
-      <div id="labelFilters" class="filterList"></div>
-    </div>
-
-    <div class="filterGroup">
-      <h2>Review</h2>
-      <button class="filterRow" data-review="30">Older than 30 days</button>
-      <button class="filterRow" data-review="90">Older than 90 days</button>
-      <button class="filterRow" data-review="unlabeled">Unlabeled</button>
-    </div>
+    <div id="sidebarContent" class="sidebarContent"></div>
   </section>
 
   <main class="workspace">
-    <header class="toolbar">
+    <header id="toolbar" class="toolbar">
       <form id="quickAddForm" class="quickAdd">
-        <input id="quickAddUrl" type="url" placeholder="Paste a link" autocomplete="off">
-        <input id="quickAddTitle" type="text" placeholder="Title" autocomplete="off">
-        <select id="quickAddLabel" aria-label="Label"></select>
-        <button type="submit">Add</button>
+        <input id="quickAddUrl" class="hidden" type="url" placeholder="Paste a link" aria-label="Paste a link" autocomplete="off" required>
+        <button id="quickAddSubmit" class="iconTextButton primaryButton" type="button" aria-expanded="false" aria-controls="quickAddUrl">Add</button>
       </form>
-      <input id="search" class="search" type="search" placeholder="Search links" autocomplete="off">
+      <label class="searchWrap" aria-label="Search links">
+        <span id="searchIcon" aria-hidden="true"></span>
+        <input id="search" class="search" type="search" placeholder="Search links" aria-label="Search links" autocomplete="off">
+      </label>
     </header>
 
-    <section class="content">
+    <section id="content" class="content">
       <section class="linksPane" aria-label="Links">
         <header class="listHeader">
-          <h2 id="listTitle">Links</h2>
-          <span id="listCount">0</span>
+          <div>
+            <span id="listKicker" class="listKicker">Active</span>
+            <h2 id="listTitle">Links</h2>
+          </div>
+          <span id="listCount" class="countBadge">0</span>
         </header>
-        <div id="linksList" class="linksList"></div>
+        <div id="linksList" class="linksList" tabindex="0" aria-label="Links" aria-describedby="listKeyboardHint"></div>
+        <span id="listKeyboardHint" class="visuallyHidden">Use Up and Down to move through links, Enter for information, O to open in your browser, and E to archive or restore.</span>
       </section>
 
-      <section class="detailPane" aria-label="Link detail">
-        <div id="emptyDetail" class="emptyDetail">Select a link.</div>
-        <article id="linkDetail" class="linkDetail hidden">
-          <div class="detailTop">
+      <section id="detailPane" class="detailPane hidden" aria-labelledby="detailTitle">
+        <article id="linkDetail" class="linkDetail">
+          <div class="detailHeader">
             <div>
-              <div id="detailDomain" class="detailDomain"></div>
+              <span id="detailDomain" class="detailDomain"></span>
               <h2 id="detailTitle"></h2>
             </div>
-            <button id="detailOpen">Open</button>
+            <button id="detailClose" class="iconButton" type="button" title="Close" aria-label="Close"></button>
           </div>
           <div class="detailUrl" id="detailUrl"></div>
+          <div class="detailActions detailActionsTop">
+            <button id="detailOpen" class="iconTextButton" type="button">Open</button>
+            <button id="archiveDetail" class="iconTextButton" type="button">Archive</button>
+          </div>
           <div class="detailMeta">
-            <label>Label <select id="detailLabel"></select></label>
-            <label>Contexts <input id="detailContexts" type="text" placeholder="@Home, @Work"></label>
-            <label>Tags <input id="detailTags" type="text" placeholder="tag, another-tag"></label>
+            <fieldset class="labelField">
+              <legend>Label</legend>
+              <div id="detailLabel" class="labelChooser"></div>
+            </fieldset>
+            <fieldset class="contextField">
+              <legend>Contexts</legend>
+              <div id="detailContexts" class="contextOptions"></div>
+            </fieldset>
+            <fieldset class="tagField">
+              <legend>Tags</legend>
+              <div id="detailTags" class="tagEditor"></div>
+            </fieldset>
           </div>
-          <label class="notesLabel">Notes</label>
+          <label class="notesLabel" for="detailBody">Notes</label>
           <textarea id="detailBody" class="notes"></textarea>
-          <div class="detailActions">
-            <button id="saveDetail">Save</button>
-            <button id="archiveDetail">Archive</button>
-          </div>
+          <div id="detailSaveState" class="detailSaveState" aria-live="polite"></div>
         </article>
       </section>
     </section>
   </main>
 
+  <dialog id="captureReviewModal" class="captureReviewModal hidden" aria-labelledby="captureReviewHeading">
+    <h2 id="captureReviewHeading" class="visuallyHidden">Edit saved link</h2>
+    <div class="captureReviewCard">
+      <header class="captureReviewBar">
+        <span>Link added to your library.</span>
+        <button id="captureReviewDone" class="iconButton inverseIconButton" type="button" title="Done" aria-label="Done"></button>
+      </header>
+      <div class="captureReviewBody">
+        <input id="captureReviewTitle" class="captureReviewTitleInput" type="text" aria-label="Title">
+        <div id="captureReviewUrl" class="captureReviewUrl"></div>
+        <div class="captureReviewMeta">
+          <fieldset class="labelField">
+            <legend>Label</legend>
+            <div id="captureReviewLabel" class="labelChooser"></div>
+          </fieldset>
+          <fieldset class="contextField">
+            <legend>Contexts</legend>
+            <div id="captureReviewContexts" class="contextOptions"></div>
+          </fieldset>
+          <fieldset class="tagField">
+            <legend>Tags</legend>
+            <div id="captureReviewTags" class="tagEditor"></div>
+          </fieldset>
+        </div>
+        <label class="notesLabel" for="captureReviewBody">Notes</label>
+        <textarea id="captureReviewBody" class="notes captureReviewNotes"></textarea>
+        <div id="captureReviewSaveState" class="detailSaveState" aria-live="polite"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="shortcutsDialog" class="shortcutsDialog" aria-labelledby="shortcutsHeading">
+    <header class="shortcutsHeader">
+      <h2 id="shortcutsHeading">Keyboard shortcuts</h2>
+      <form method="dialog"><button type="submit" aria-label="Close keyboard shortcuts">Close</button></form>
+    </header>
+    <div id="shortcutsContent"></div>
+    <p>Tab moves between controls. Enter or Space activates them. Escape closes a panel or menu. Outside dialogs, shortcuts with a modifier also work while typing.</p>
+  </dialog>
+
   <div id="status" class="status" role="status" aria-live="polite"></div>
 </body>
 </html>
-

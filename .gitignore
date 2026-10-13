@@ -3,4 +3,16 @@ dist/
 .DS_Store
 *.log
 .rinku-test/
-
+.env
+.env.*
+!.env-sample
+*.p12
+*.p8
+playwright-report/
+test-results/
+build/safari/
+/.opencode/
+/.rinku/
+/links/
+/archive/
+/rinku-settings.md

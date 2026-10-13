@@ -78,9 +78,9 @@ The id remains canonical if the title or URL later changes.
 ---
 schemaVersion: 1
 labels: [{"id":"read","name":"Read","color":"#f97316"},{"id":"watch","name":"Watch","color":"#2563eb"},{"id":"listen","name":"Listen","color":"#eab308"},{"id":"buy","name":"Buy","color":"#9333ea"},{"id":"eat-drink","name":"Eat & Drink","color":"#16a34a"},{"id":"do","name":"Do","color":"#db2777"},{"id":"unlabeled","name":"Unlabeled","color":"#64748b"}]
-contexts: []
+contexts: ["@Home","@Work"]
 smartLabels: {"learnFromManualChanges":true,"rules":[]}
-capture: {"localHttpEnabled":false}
+capture: {"localHttpEnabled":false,"localHttpPort":47342}
 ---
 
 # Rinku Settings

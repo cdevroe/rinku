@@ -12,6 +12,7 @@ const {
   readSettings,
   renameLabel,
   updateLink,
+  updateSettings,
 } = require('../lib/library');
 
 async function makeTempLibrary() {
@@ -27,6 +28,7 @@ async function run() {
   try {
     const settings = await readSettings(libraryRoot);
     assert(settings.labels.some((label) => label.id === 'read'), 'default Read label should exist');
+    assert.deepStrictEqual(settings.contexts, ['@Home', '@Work']);
     assert.strictEqual(settings.smartLabels.learnFromManualChanges, true);
 
     const first = await createLink(libraryRoot, {
@@ -79,6 +81,30 @@ async function run() {
     const renamedArchived = await listLinks(libraryRoot, { status: 'archived', label: 'read' });
     assert.strictEqual(renamedArchived.links.length, 1);
     assert(renamedArchived.links[0].filePath.includes(`${path.sep}archive${path.sep}Reading${path.sep}`));
+
+    const customizedSettings = await updateSettings(libraryRoot, {
+      labels: [
+        ...renamedSettings.labels.map((label) => (
+          label.id === 'read'
+            ? { ...label, name: 'Research', color: '#123456' }
+            : label
+        )),
+        { name: 'Study Later', color: '#38bdf8' },
+      ],
+      contexts: ['Home', '@Studio'],
+    });
+    assert(customizedSettings.labels.some((label) => label.id === 'read' && label.name === 'Research' && label.color === '#123456'));
+    assert(customizedSettings.labels.some((label) => label.id === 'study-later' && label.name === 'Study Later'));
+    assert.deepStrictEqual(customizedSettings.contexts, ['@Home', '@Studio']);
+    await fs.access(path.join(libraryRoot, 'links', 'Study Later'));
+
+    const customizedActive = await listLinks(libraryRoot, { status: 'active', label: 'read' });
+    assert.strictEqual(customizedActive.links.length, 1);
+    assert(customizedActive.links[0].filePath.includes(`${path.sep}links${path.sep}Research${path.sep}`));
+
+    const customizedArchived = await listLinks(libraryRoot, { status: 'archived', label: 'read' });
+    assert.strictEqual(customizedArchived.links.length, 1);
+    assert(customizedArchived.links[0].filePath.includes(`${path.sep}archive${path.sep}Research${path.sep}`));
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
