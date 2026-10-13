@@ -166,7 +166,7 @@ Notes:
 - Local build scripts use `--publish never`; publish release artifacts manually or through your release automation.
 - Standard public downloads are macOS universal, one Windows installer, and Linux `AppImage`/`deb` builds for `x64` and ARM64.
 - GitHub release metadata powers auto-updates through `electron-updater`.
-- Copy `.env-sample` to `.env` and fill in signing/notarization credentials for signed macOS builds.
+- Copy `.env-sample` to `.env` and fill in signing/notarization credentials for signed macOS builds. An existing Developer ID Application certificate can also sign Rinku. See [macOS signing and notarization](docs/macos-signing.md) for setup and verification.
 - Set `RINKU_SKIP_NOTARIZATION=1` for local macOS packaging that should skip notarization.
 - macOS packaging builds the Safari extension and setup helper automatically before code signing. Install Xcode or Apple's Command Line Tools; the native Objective-C sources are in `safari/`. The extension is embedded in `Rinku.app/Contents/PlugIns`, and uses its own Sandbox entitlements rather than Electron's entitlements. It is signed with the same identity as Rinku and included in the app's notarization. Windows/Linux builds do not include it.
 - `npm run build:safari` builds standalone universal native artifacts under `build/safari/` for inspection. `npm run test:safari` checks the native capture URL encoding, universal binaries, bundle signing, and setup bridge. Distribution through Safari requires a Developer ID-signed and notarized macOS app; an ad-hoc local build is only suitable for development.

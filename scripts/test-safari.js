@@ -61,6 +61,28 @@ async function main() {
       assert.equal(capture.searchParams.get('url'), result.url);
       assert.equal(capture.searchParams.get('title'), result.title);
       console.log('Universal Safari build, bundle signature, and native capture encoding tests passed.');
+
+      // Exercise the production signing hook with a minimal native host. Signing
+      // its main executable before its sibling helper would fail to seal the app.
+      const host = path.dirname(contents);
+      await fs.writeFile(path.join(contents, 'Info.plist'), `<?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0"><dict>
+          <key>CFBundleIdentifier</key><string>com.cdevroe.rinku.signing-test</string>
+          <key>CFBundleExecutable</key><string>Rinku</string>
+          <key>CFBundlePackageType</key><string>APPL</string>
+          <key>CFBundleVersion</key><string>1</string>
+        </dict></plist>`);
+      await fs.copyFile(binary, path.join(contents, 'MacOS', 'Rinku'));
+      await fs.copyFile(helperBinary, path.join(contents, 'MacOS', HELPER_NAME));
+      await fs.cp(bundlePath, path.join(contents, 'PlugIns', EXTENSION_NAME), { recursive: true });
+      await require('./sign-mac').default({
+        app: host, platform: 'darwin', identity: '-', preAutoEntitlements: false,
+        gatekeeperAssess: false,
+        optionsForFile: () => ({ entitlements: path.join(__dirname, '..', 'safari', 'helper-entitlements.plist'), hardenedRuntime: true }),
+      });
+      execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', host], { stdio: ['ignore', 'pipe', 'pipe'] });
+      console.log('Production signing hook seals the Safari helper, extension, and host successfully.');
     }
   } finally { await fs.rm(temp, { recursive: true, force: true }); }
 }

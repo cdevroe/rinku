@@ -1,5 +1,5 @@
 const { notarize } = require('@electron/notarize');
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 exports.default = async function notarizeApp(context) {
   const { electronPlatformName, appOutDir, packager } = context;
@@ -17,14 +17,15 @@ exports.default = async function notarizeApp(context) {
   const appleIdPassword = process.env.APPLE_APP_SPECIFIC_PASSWORD;
   const teamId = process.env.APPLE_TEAM_ID;
 
-  if (!appleId || !appleIdPassword) {
-    console.warn('Skipping notarization: APPLE_ID and/or APPLE_APP_SPECIFIC_PASSWORD not set.');
+  if (!appleId || !appleIdPassword || !teamId) {
+    if (process.env.RINKU_REQUIRE_SIGNING === '1') throw new Error('APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, and APPLE_TEAM_ID are required for notarization.');
+    console.warn('Skipping notarization: Apple notarization credentials are not configured.');
     return;
   }
 
   const appName = packager.appInfo.productFilename;
   const appPath = `${appOutDir}/${appName}.app`;
-  console.log(`Notarizing ${appName} with Apple ID ${appleId}...`);
+  console.log(`Notarizing ${appName} with Apple...`);
 
   await notarize({
     appBundleId: packager.appInfo.appId,
