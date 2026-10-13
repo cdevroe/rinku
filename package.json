@@ -2,7 +2,7 @@
   "name": "rinku",
   "productName": "Rinku",
   "description": "A local-first app for saving, organizing, and revisiting links.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "author": "Colin Devroe <colin@cdevroe.com> (https://cdevroe.com)",
   "main": "main.js",
@@ -67,6 +67,7 @@
     "dotenv": "^17.4.2",
     "electron": "^40.10.1",
     "electron-builder": "26.15.3",
+    "node-api-headers": "1.9.0",
     "png-to-ico": "^3.0.1",
     "sharp": "^0.35.2"
   },

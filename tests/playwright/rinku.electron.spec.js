@@ -284,6 +284,12 @@ test('capture settings guides Safari setup and preserves both bookmarklets', asy
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await expect(page.getByRole('button', { name: 'Open Safari Settings' })).toBeEnabled();
     await expect(page.getByText('Enabled in Safari', { exact: true })).toBeVisible();
+    await electronApp.evaluate(({ ipcMain }) => {
+      ipcMain.removeHandler('rinku:setup-safari-extension');
+      ipcMain.handle('rinku:setup-safari-extension', () => ({ ok: false, error: 'Safari setup unavailable.' }));
+    });
+    await page.getByRole('button', { name: 'Open Safari Settings' }).click();
+    await expect(page.getByText('Safari setup unavailable.', { exact: true })).toBeVisible();
     await expect(page.locator('.captureInstructions')).toContainText('keeping the javascript: prefix');
     await page.getByRole('button', { name: 'Copy Save with Rinku bookmarklet', exact: true }).click();
     await expect.poll(() => page.evaluate(() => globalThis.__copiedBookmarklet)).toContain('rinku://capture');
@@ -299,6 +305,20 @@ test('capture settings guides Safari setup and preserves both bookmarklets', asy
     await page.getByRole('button', { name: 'Stop popup capture' }).click();
     await expect(page.getByRole('link', { name: 'Save with Popup' })).toHaveCount(0);
   } finally { await cleanup([fixture.root, app && app.userDataDir], app && app.electronApp); }
+});
+
+test('signed packaged app can check its Safari extension and open its settings', async () => {
+  test.skip(process.platform !== 'darwin' || !process.env.RINKU_TEST_EXECUTABLE || !process.env.RINKU_TEST_SAFARI_SETUP,
+    'Opt-in signed macOS release check; opens Safari Settings without enabling the extension.');
+  let app;
+  try {
+    app = await launchRinku();
+    const status = await app.page.evaluate(() => window.rinku.safariExtensionStatus());
+    expect(status.supported).toBe(true);
+    expect(status.bundled).toBe(true);
+    expect(status.error).toBeFalsy();
+    expect(await app.page.evaluate(() => window.rinku.setupSafariExtension())).toEqual({ ok: true });
+  } finally { await cleanup([app && app.userDataDir], app && app.electronApp); }
 });
 
 test('Safari capture protocol saves the page title and opens review', async () => {
@@ -731,6 +751,7 @@ test('tag delimiters retain focus and modal keyboard focus stays contained', asy
     await expect(detailInput).toBeFocused();
     await expect(page.locator('#detailTags .tagPill')).toHaveCount(3);
     await page.keyboard.press('Escape');
+    await expect(page.locator('#detailPane')).toBeHidden();
     expect((await readCurrentLink(fixture.libraryRoot, fixture.links.scienceHome.id)).tags).toEqual(['science', 'first', 'second']);
     await pressShortcut(app.electronApp, 'N');
     await expect(page.locator('#quickAddUrl')).toBeFocused();

@@ -5,7 +5,7 @@ const { execFileSync } = require('child_process');
 const repoRoot = path.resolve(__dirname, '..');
 const sourceDir = path.join(repoRoot, 'safari');
 const EXTENSION_NAME = 'RinkuSafariExtension.appex';
-const HELPER_NAME = 'rinku-safari-helper';
+const BRIDGE_NAME = 'rinku-safari-bridge.node';
 
 function toolbarPDF() {
   // A transparent, scalable bookmark with a plus; Safari supplies its tint.
@@ -53,7 +53,9 @@ async function buildSafari({ outputDir = path.join(repoRoot, 'build', 'safari'),
     for (const cpu of architectures) {
       const args = ['clang', '-fobjc-arc', '-fblocks', '-Wall', '-Wextra', '-Werror', '-Wno-unused-parameter', '-Os', '-isysroot', sdk, '-target', `${cpu}-apple-macos11.0`, '-framework', 'AppKit', '-framework', 'SafariServices'];
       runTool([...args, '-fapplication-extension', '-framework', 'Foundation', '-Wl,-e,_NSExtensionMain', path.join(sourceDir, 'SafariExtensionHandler.m'), path.join(sourceDir, 'CaptureURL.m'), '-o', path.join(temp, `extension-${cpu}`)]);
-      runTool([...args, path.join(sourceDir, 'SafariSetup.m'), '-o', path.join(temp, `helper-${cpu}`)]);
+      runTool([...args, '-bundle', '-undefined', 'dynamic_lookup', '-DNAPI_VERSION=8',
+        '-DNODE_GYP_MODULE_NAME=rinku_safari_bridge', '-I', require('node-api-headers').include_dir,
+        path.join(sourceDir, 'SafariBridge.m'), '-o', path.join(temp, `bridge-${cpu}`)]);
     }
     // Clear an earlier bundle so old code signatures/resources cannot survive a rebuild.
     await fs.rm(bundlePath, { recursive: true, force: true });
@@ -61,8 +63,8 @@ async function buildSafari({ outputDir = path.join(repoRoot, 'build', 'safari'),
     await fs.mkdir(path.join(contents, 'MacOS'), { recursive: true });
     await fs.mkdir(path.join(contents, 'Resources'), { recursive: true });
     const extensionBinary = path.join(contents, 'MacOS', 'RinkuSafariExtension');
-    const helperBinary = path.join(outputDir, HELPER_NAME);
-    for (const [kind, destination] of [['extension', extensionBinary], ['helper', helperBinary]]) {
+    const bridgeBinary = path.join(outputDir, BRIDGE_NAME);
+    for (const [kind, destination] of [['extension', extensionBinary], ['bridge', bridgeBinary]]) {
       runTool(['lipo', '-create', ...architectures.map((cpu) => path.join(temp, `${kind}-${cpu}`)), '-output', destination]);
       await fs.chmod(destination, 0o755);
     }
@@ -71,7 +73,7 @@ async function buildSafari({ outputDir = path.join(repoRoot, 'build', 'safari'),
     await fs.writeFile(path.join(contents, 'Resources', 'ToolbarIcon.pdf'), toolbarPDF());
     await fs.writeFile(path.join(contents, 'PkgInfo'), 'XPC!????');
     execFileSync('plutil', ['-lint', path.join(contents, 'Info.plist')], { stdio: 'inherit' });
-    return { bundlePath, helperBinary };
+    return { bundlePath, bridgeBinary };
   } finally {
     await fs.rm(temp, { recursive: true, force: true });
   }
@@ -79,7 +81,7 @@ async function buildSafari({ outputDir = path.join(repoRoot, 'build', 'safari'),
 
 exports.buildSafari = buildSafari;
 exports.EXTENSION_NAME = EXTENSION_NAME;
-exports.HELPER_NAME = HELPER_NAME;
+exports.BRIDGE_NAME = BRIDGE_NAME;
 
 if (require.main === module) {
   const arch = process.argv[2] || 'universal';

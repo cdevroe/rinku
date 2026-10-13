@@ -1,6 +1,6 @@
 # macOS signing and notarization
 
-Rinku's macOS release contains the Electron app, the native Safari app extension, and its setup helper. They use the same Developer ID Application identity. An existing certificate used for another app, such as Signboard, can also sign Rinku; a new certificate per app is unnecessary.
+Rinku's macOS release contains the Electron app, the native Safari app extension, and a Node-API setup bridge. They use the same Developer ID Application identity. The bridge calls SafariServices from Rinku's main process; Safari validates the containing app's identity, so these calls cannot come from a separate helper executable. An existing certificate used for another app, such as Signboard, can also sign Rinku; a new certificate per app is unnecessary.
 
 Rinku has its own bundle ID, `com.cdevroe.rinku`, and the extension has its own ID, `com.cdevroe.rinku.SafariExtension`. These must remain stable for updates and Safari settings. The current extension only uses App Sandbox, without restricted capabilities or an App Group.
 
@@ -44,6 +44,14 @@ xcrun stapler validate dist/mac-universal/Rinku.app
 Gatekeeper should report `accepted` with `source=Notarized Developer ID`, and stapler should report that validation worked. If full Xcode is not ready, prefix the stapler command with `DEVELOPER_DIR=/Library/Developer/CommandLineTools`.
 
 Install Rinku from the DMG into Applications and launch it. Open **Settings > Capture > Enable in Safari**, then enable **Rinku** in **Safari > Settings > Extensions**. macOS requires the user to approve enabling the extension. Visit a page and use **Save with Rinku** or **Save Page to Rinku**. The bookmarklets remain available for other browsers.
+
+Check the actual SafariServices calls from the signed, installed app with:
+
+```sh
+RINKU_TEST_EXECUTABLE=/Applications/Rinku.app/Contents/MacOS/Rinku RINKU_TEST_SAFARI_SETUP=1 npm run test:playwright -- --grep 'signed packaged app'
+```
+
+This opt-in check uses temporary Rinku user data and opens Safari's extension settings without enabling the extension or granting website access. Testing a build-directory copy alongside the installed copy can register two extensions with the same ID and cause Safari's ownership check to fail. Remove only your test copy's registration with `pluginkit -r /absolute/path/to/test/Rinku.app/Contents/PlugIns/RinkuSafariExtension.appex` after testing; preserve the installed copy. Signing/notarization checks alone do not validate the setup flow.
 
 After checking the release, upload the desired assets and updater metadata to the project's GitHub release separately. Do not change the bundle IDs or signing team between updates.
 

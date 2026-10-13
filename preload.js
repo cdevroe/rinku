@@ -19,7 +19,11 @@ contextBridge.exposeInMainWorld('rinku', {
   startCaptureServer: (libraryRoot, options) => ipcRenderer.invoke('rinku:start-capture-server', libraryRoot, options),
   stopCaptureServer: () => ipcRenderer.invoke('rinku:stop-capture-server'),
   safariExtensionStatus: () => ipcRenderer.invoke('rinku:safari-extension-status'),
-  setupSafariExtension: () => ipcRenderer.invoke('rinku:setup-safari-extension'),
+  setupSafariExtension: async () => {
+    const result = await ipcRenderer.invoke('rinku:setup-safari-extension');
+    if (!result.ok) throw new Error(result.error || 'Could not open Safari Settings.');
+    return result;
+  },
   checkForUpdates: () => ipcRenderer.invoke('rinku:check-for-updates'),
   onCommand: (callback) => {
     const handler = (_event, command) => callback(command);

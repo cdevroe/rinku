@@ -574,7 +574,10 @@ if (process.argv.includes('--mcp-server')) {
   });
   ipcMain.handle('rinku:stop-capture-server', async () => captureServer.stop());
   ipcMain.handle('rinku:safari-extension-status', () => safariExtension.status());
-  ipcMain.handle('rinku:setup-safari-extension', () => safariExtension.openSettings());
+  ipcMain.handle('rinku:setup-safari-extension', async () => {
+    try { return await safariExtension.openSettings(); }
+    catch (error) { return { ok: false, error: error.message }; }
+  });
   ipcMain.handle('rinku:open-external', async (_event, url) => {
     const target = String(url || '').trim();
     if (target) {
