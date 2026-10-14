@@ -33,7 +33,7 @@
     "test:capture": "node scripts/test-capture-server.js",
     "test:safari": "node scripts/test-safari.js",
     "test:playwright": "playwright test",
-    "test:all": "npm test && npm run test:mac-signing && npm run test:safari && npm run test:playwright",
+    "test:all": "npm test && npm run test:release && npm run test:build-proxy && npm run test:mac-signing && npm run test:safari && npm run test:playwright",
     "dist": "npm run dist:mac",
     "dist:mac": "npm run build:icons && node scripts/dist-mac.js --universal",
     "dist:mac:arm64": "npm run build:icons && node scripts/dist-mac.js --arm64",
@@ -59,7 +59,8 @@
     "api:server": "node ./bin/rinku.js api serve",
     "test:api": "node scripts/test-api.js",
     "test:release": "node scripts/test-release-assets.js",
-    "release:checksums": "node scripts/verify-release-assets.js --write-checksums"
+    "release:checksums": "node scripts/verify-release-assets.js --write-checksums",
+    "test:build-proxy": "node scripts/test-build-proxy.js"
   },
   "devDependencies": {
     "@electron/notarize": "^3.1.1",
@@ -67,7 +68,7 @@
     "@fiahfy/icns": "^0.0.7",
     "@playwright/test": "^1.61.1",
     "dotenv": "^17.4.2",
-    "electron": "^40.10.1",
+    "electron": "^44.7.2",
     "electron-builder": "26.15.3",
     "node-api-headers": "1.9.0",
     "png-to-ico": "^3.0.1",
@@ -87,5 +88,10 @@
     "type": "git",
     "url": "https://github.com/cdevroe/rinku.git"
   },
-  "desktopName": "rinku.desktop"
+  "desktopName": "rinku.desktop",
+  "overrides": {
+    "@electron/get@3.1.0": {
+      "global-agent": "4.1.3"
+    }
+  }
 }

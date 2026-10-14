@@ -2,7 +2,31 @@
 
 The standard download set is a universal macOS DMG and ZIP, a Windows NSIS installer containing x64 and ARM64 builds, and Linux AppImage and deb packages for each architecture. The ZIP is required for macOS automatic updates. Keep updater YAML and blockmap files alongside their corresponding installers.
 
-## GitHub Actions
+Local builds are the standard release workflow. GitHub Actions is optional and is not a prerequisite for publishing the source.
+
+## Local builds
+
+Run `npm ci` and `npm run test:all` on macOS before a release. On Windows/Linux, run `npm test`, `npm run test:release`, and `npm run test:build-proxy`. Build on each platform with:
+
+```sh
+npm run dist:mac    # macOS: signed, notarized universal DMG/ZIP
+npm run dist:win    # Windows: one NSIS installer with x64 and ARM64
+npm run dist:linux  # Linux: x64 and ARM64 AppImage/deb
+```
+
+All packaging commands use `--publish never`. Build from the same commit and lockfile, then collect each platform's top-level output files into one clean directory. Avoid mixing artifacts from older builds. `npm run dist:all` runs the three commands sequentially on one machine, but requires the host's cross-platform packaging tools; the GitHub workflow uses separate hosts instead.
+
+The NSIS toolset is pinned to `1.2.1` in `electron-builder.json`, providing a native installer compiler on Apple Silicon as well as Windows and Linux. This avoids the legacy compiler's Intel-only macOS binary. Windows packages built here remain unsigned until a Windows signing identity is configured.
+
+Verify the combined directory and generate download checksums:
+
+```sh
+node scripts/verify-release-assets.js --dir /path/to/release --write-checksums
+```
+
+For the default `dist/`, use `npm run release:checksums`. Verification requires all seven installers/archives, their blockmaps, and four updater YAML files. It checks versions, file references, sizes, and SHA-512 hashes from updater metadata. `--allow-partial` permits missing platforms for local work, but still rejects corrupt files or stale metadata. A partial check does not certify a complete release. The checksum manifest contains only the expected release files, excluding unpacked applications, debug files, and old versions.
+
+## Optional GitHub Actions
 
 After pushing this repository to GitHub, configure these repository Actions secrets:
 
@@ -24,28 +48,6 @@ The workflow passes signing secrets only to the macOS packaging step. It require
 This workflow does not create tags, create releases, or upload public downloads. Its token only has read access. Windows installers are currently unsigned; Windows publisher signing needs a separately configured Windows certificate or signing service before claiming a verified publisher.
 
 The updater currently points to `cdevroe/rinku` in `electron-builder.json`. Confirm the destination before publishing; forks should change it before building.
-
-## Local builds
-
-Run `npm ci` and `npm run test:all` on macOS before a release. On Windows/Linux, run `npm test` and `npm run test:release`. Build on each platform with:
-
-```sh
-npm run dist:mac    # macOS: signed, notarized universal DMG/ZIP
-npm run dist:win    # Windows: one NSIS installer with x64 and ARM64
-npm run dist:linux  # Linux: x64 and ARM64 AppImage/deb
-```
-
-All packaging commands use `--publish never`. Build from the same commit and lockfile, then collect each platform's top-level output files into one clean directory. Avoid mixing artifacts from older builds. `npm run dist:all` runs the three commands sequentially on one machine, but requires the host's cross-platform packaging tools; the GitHub workflow uses separate hosts instead.
-
-The NSIS toolset is pinned to `1.2.1` in `electron-builder.json`, providing a native installer compiler on Apple Silicon as well as Windows and Linux. This avoids the legacy compiler's Intel-only macOS binary. Windows packages built here remain unsigned until a Windows signing identity is configured.
-
-Verify the combined directory and generate download checksums:
-
-```sh
-node scripts/verify-release-assets.js --dir /path/to/release --write-checksums
-```
-
-For the default `dist/`, use `npm run release:checksums`. Verification requires all seven installers/archives, their blockmaps, and four updater YAML files. It checks versions, file references, sizes, and SHA-512 hashes from updater metadata. `--allow-partial` permits missing platforms for local work, but still rejects corrupt files or stale metadata. A partial check does not certify a complete release. The checksum manifest contains only the expected release files, excluding unpacked applications, debug files, and old versions.
 
 ## Before publishing
 

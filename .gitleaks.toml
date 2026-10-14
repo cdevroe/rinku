@@ -1,0 +1,11 @@
+[extend]
+useDefault = true
+
+# npm's local unsigned build clears CSC_KEY_PASSWORD. Gitleaks interprets the
+# following environment assignment as its value, although the shell does not.
+[[rules]]
+id = "generic-api-key"
+[[rules.allowlists]]
+description = "Empty signing password followed by the local notarization flag"
+regexTarget = "match"
+regexes = ['^CSC_KEY_PASSWORD= RINKU_SKIP_NOTARIZATION=1 $']

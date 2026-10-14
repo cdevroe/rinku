@@ -31,6 +31,7 @@ Use a disposable library when developing storage or migration changes. Libraries
 
 ```sh
 npm test                 # Core behavior; runs on macOS, Windows, and Linux
+npm run test:build-proxy # Packaging downloader proxy compatibility
 npm run test:playwright  # Electron UI; requires a graphical session
 npm run test:all         # Full local suite, including native Safari checks on macOS
 ```
@@ -52,3 +53,5 @@ Contributions are made under the project's [MIT license](LICENSE). For private v
 ## Releases
 
 Release packaging is maintained separately from pull-request CI. See [Preparing a release](docs/releases.md) and the [macOS signing guide](docs/macos-signing.md). The CI workflow tests source changes; it does not publish installers or access release credentials. The manual **Build installers** workflow creates downloadable artifacts without publishing a GitHub release.
+
+Local builds are the standard release workflow; running GitHub Actions is optional. See [Local security checks](docs/security-checks.md) for dependency auditing and Git-history secret scanning.
