@@ -1,9 +1,11 @@
 const { notarize } = require('@electron/notarize');
-require('dotenv').config({ quiet: true });
 
 exports.default = async function notarizeApp(context) {
   const { electronPlatformName, appOutDir, packager } = context;
   if (electronPlatformName !== 'darwin') return;
+  // Other platform builds load this hook too. Do not expose macOS signing
+  // credentials to Windows' automatic certificate discovery.
+  require('dotenv').config({ quiet: true });
 
   const skipNotarization = ['1', 'true', 'yes'].includes(
     String(process.env.RINKU_SKIP_NOTARIZATION || '').toLowerCase()

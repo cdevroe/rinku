@@ -195,10 +195,11 @@ function rowByTitle(page, title) {
 }
 
 async function readCurrentLink(libraryRoot, id) {
-  const result = await listLinks(libraryRoot, { rebuild: true });
-  const record = result.links.find((link) => link.id === id);
-  if (!record) return null;
   try {
+    // A poll can overlap the app moving a file during archive/restore.
+    const result = await listLinks(libraryRoot, { rebuild: true });
+    const record = result.links.find((link) => link.id === id);
+    if (!record) return null;
     return await readLinkFile(record.filePath);
   } catch (error) {
     if (error && error.code === 'ENOENT') {

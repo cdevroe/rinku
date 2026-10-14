@@ -57,7 +57,9 @@
     "release:verify:partial": "node scripts/verify-release-assets.js --allow-partial",
     "release:prepare": "npm run dist:all && npm run release:verify",
     "api:server": "node ./bin/rinku.js api serve",
-    "test:api": "node scripts/test-api.js"
+    "test:api": "node scripts/test-api.js",
+    "test:release": "node scripts/test-release-assets.js",
+    "release:checksums": "node scripts/verify-release-assets.js --write-checksums"
   },
   "devDependencies": {
     "@electron/notarize": "^3.1.1",
@@ -79,5 +81,11 @@
   },
   "engines": {
     "node": ">=22.12.0"
-  }
+  },
+  "homepage": "https://github.com/cdevroe/rinku",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cdevroe/rinku.git"
+  },
+  "desktopName": "rinku.desktop"
 }

@@ -166,15 +166,19 @@ npm run dist:win
 # Linux AppImage/deb for x64 and ARM64
 npm run dist:linux
 
-# Build the full public matrix
+# Build the full public matrix locally (requires cross-platform packaging tools)
 npm run dist:all
 
 # Verify release assets and updater metadata
 npm run release:verify
+
+# Verify the complete set and write SHA256SUMS
+npm run release:checksums
 ```
 
 Notes:
 
+- The manual **Build installers** GitHub Actions workflow builds on macOS, Windows, and Linux hosts, then combines and verifies the download set. It does not publish. See [Preparing a release](docs/releases.md) for signing secrets, downloads, and platform checks.
 - Local build scripts use `--publish never`; publish release artifacts manually or through your release automation.
 - Standard public downloads are macOS universal, one Windows installer, and Linux `AppImage`/`deb` builds for `x64` and ARM64.
 - GitHub release metadata powers auto-updates through `electron-updater`.

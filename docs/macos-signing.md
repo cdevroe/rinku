@@ -12,7 +12,7 @@ Rinku has its own bundle ID, `com.cdevroe.rinku`, and the extension has its own 
 4. Set `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID` for the same Apple developer team. The Apple ID must be authorized to submit notarization requests. The password is an Apple account app-specific password, separate from the certificate password.
 5. Keep `.env` and the private key archive outside version control. `.env` and certificate/key files are ignored. Use `chmod 600 .env` on a shared Mac. They are excluded from the packaged app.
 
-For this checkout, the existing Signboard credentials have already been configured locally. No new certificate is needed. The build imports an exported certificate into a temporary signing keychain; it does not require installing another permanent identity.
+The build imports an exported certificate into a temporary signing keychain; it does not require installing another permanent identity. For GitHub Actions, configure the secrets listed in [Preparing a release](releases.md).
 
 ## Build a release
 

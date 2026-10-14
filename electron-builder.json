@@ -2,6 +2,9 @@
   "appId": "com.cdevroe.rinku",
   "productName": "Rinku",
   "artifactName": "rinku_${version}_${os}_${arch}.${ext}",
+  "toolsets": {
+    "nsis": "1.2.1"
+  },
   "files": [
     "app/**",
     "bin/**",
@@ -47,7 +50,8 @@
   "linux": {
     "target": ["AppImage", "deb", "rpm"],
     "category": "Utility",
-    "icon": "build/icons"
+    "icon": "build/icons",
+    "syncDesktopName": true
   },
   "afterPack": "scripts/bundle-safari.js",
   "afterSign": "scripts/notarize.js",

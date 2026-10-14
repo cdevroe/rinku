@@ -53,6 +53,24 @@ async function run() {
     assert.deepEqual(imports.map((args) => args[args.indexOf('-P') + 1]),
       ['application-certificate-password', 'installer-certificate-password']);
   }
+  const hook = {};
+  let envLoads = 0;
+  vm.runInNewContext(fs.readFileSync(require.resolve('./notarize'), 'utf8'), {
+    exports: hook,
+    require: (name) => {
+      if (name === '@electron/notarize') return { notarize: async () => assert.fail('Unexpected notarization') };
+      if (name === 'dotenv') return { config: () => { envLoads += 1; } };
+      throw new Error(`Unexpected dependency: ${name}`);
+    },
+    process: { env: { RINKU_SKIP_NOTARIZATION: '1' } },
+    console: { warn() {} },
+  });
+  assert.equal(envLoads, 0, 'Loading the hook must not load macOS credentials.');
+  await hook.default({ electronPlatformName: 'win32' });
+  await hook.default({ electronPlatformName: 'linux' });
+  assert.equal(envLoads, 0, 'Windows/Linux builds must not inherit macOS credentials.');
+  await hook.default({ electronPlatformName: 'darwin' });
+  assert.equal(envLoads, 1, 'macOS notarization still loads its local configuration.');
   console.log('macOS signing regression passed: original mismatch reproduced; patched keychain and certificate passwords remain separate.');
 }
 

@@ -3,13 +3,20 @@
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
+const crypto = require('crypto');
 
 const repoRoot = path.resolve(__dirname, '..');
-const distDir = path.join(repoRoot, 'dist');
+const dirIndex = process.argv.indexOf('--dir');
+if (dirIndex !== -1 && (!process.argv[dirIndex + 1] || process.argv[dirIndex + 1].startsWith('--'))) {
+  throw new Error('--dir requires a directory path');
+}
+const distDir = dirIndex === -1 ? path.join(repoRoot, 'dist') : path.resolve(process.argv[dirIndex + 1]);
 const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
 const builderConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, 'electron-builder.json'), 'utf8'));
 const version = packageJson.version;
 const allowPartial = process.argv.includes('--allow-partial');
+const writeChecksums = process.argv.includes('--write-checksums');
+if (allowPartial && writeChecksums) throw new Error('Checksums require a complete release; omit --allow-partial.');
 const errors = [];
 const warnings = [];
 
@@ -29,6 +36,12 @@ const requiredArtifacts = [
   `rinku_${version}_linux_arm64.AppImage`,
   `rinku_${version}_linux_arm64.deb`,
 ];
+const metadataAssets = {
+  'latest-mac.yml': requiredArtifacts.slice(0, 2),
+  'latest.yml': [requiredArtifacts[2]],
+  'latest-linux.yml': requiredArtifacts.slice(3, 5),
+  'latest-linux-arm64.yml': requiredArtifacts.slice(5, 7),
+};
 
 const curatedDownloads = [
   { label: 'Download for macOS (Universal)', file: `rinku_${version}_mac_universal.dmg` },
@@ -81,6 +94,14 @@ const uploadFiles = [
   ...requiredMetadataFiles.filter((name) => distEntrySet.has(name)),
 ];
 Array.from(new Set(uploadFiles)).sort().forEach((name) => console.log(`- dist/${name}`));
+if (writeChecksums) {
+  const manifest = Array.from(new Set(uploadFiles)).sort().map((name) => {
+    const hash = crypto.createHash('sha256').update(fs.readFileSync(path.join(distDir, name))).digest('hex');
+    return `${hash}  ${name}`;
+  }).join('\n') + '\n';
+  fs.writeFileSync(path.join(distDir, 'SHA256SUMS'), manifest);
+  console.log('- dist/SHA256SUMS');
+}
 
 function validateArtifactTemplates() {
   ensureTokens(packageJson.build?.artifactName, 'package.json build.artifactName', ['${version}', '${os}', '${arch}']);
@@ -97,8 +118,13 @@ function validateRequiredArtifacts() {
       addIssue(`Missing required artifact: dist/${artifact}`, allowPartial);
       continue;
     }
+    const stat = fs.statSync(path.join(distDir, artifact));
+    if (!stat.isFile() || stat.size === 0) addIssue(`Empty or invalid artifact: ${artifact}`, false);
     if (needsBlockmap(artifact) && !distEntrySet.has(`${artifact}.blockmap`)) {
       addIssue(`Missing blockmap for differential updates: dist/${artifact}.blockmap`, allowPartial);
+    } else if (needsBlockmap(artifact)) {
+      const blockmap = fs.statSync(path.join(distDir, `${artifact}.blockmap`));
+      if (!blockmap.isFile() || blockmap.size === 0) addIssue(`Empty or invalid blockmap: ${artifact}.blockmap`, false);
     }
   }
 }
@@ -119,13 +145,18 @@ function validateMetadataFiles() {
     }
 
     if (String(metadata?.version || '') !== version) {
-      addIssue(`Metadata version mismatch in ${metadataFile}. Expected ${version}, found ${metadata?.version || '<missing>'}.`, allowPartial);
+      addIssue(`Metadata version mismatch in ${metadataFile}. Expected ${version}, found ${metadata?.version || '<missing>'}.`, false);
     }
 
     const files = Array.isArray(metadata?.files) ? metadata.files : [];
     if (files.length === 0) {
       addIssue(`Metadata file has no assets listed: dist/${metadataFile}`, false);
       continue;
+    }
+    for (const expected of metadataAssets[metadataFile]) {
+      if (!files.some((entry) => entry?.url === expected)) {
+        addIssue(`Metadata ${metadataFile} does not list ${expected}`, false);
+      }
     }
 
     for (const entry of files) {
@@ -134,6 +165,19 @@ function validateMetadataFiles() {
         addIssue(`Metadata file contains an entry without a URL: dist/${metadataFile}`, false);
       } else if (!distEntrySet.has(url)) {
         addIssue(`Metadata references missing file "${url}" in ${metadataFile}`, allowPartial);
+      } else if (!metadataAssets[metadataFile].includes(url)) {
+        addIssue(`Metadata references an unexpected release asset "${url}" in ${metadataFile}`, false);
+      } else {
+        const data = fs.readFileSync(path.join(distDir, url));
+        const sha512 = crypto.createHash('sha512').update(data).digest('base64');
+        if (entry.sha512 !== sha512) addIssue(`SHA-512 mismatch for ${url} in ${metadataFile}`, false);
+        if (entry.size !== data.length) addIssue(`Size mismatch for ${url} in ${metadataFile}`, false);
+      }
+    }
+    if (metadata.path) {
+      const primary = files.find((entry) => entry.url === metadata.path);
+      if (!primary || primary.sha512 !== metadata.sha512) {
+        addIssue(`Legacy updater path/hash disagrees with files in ${metadataFile}`, false);
       }
     }
   }
