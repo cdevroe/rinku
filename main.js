@@ -22,6 +22,7 @@ if (process.argv.includes('--mcp-server')) {
     dialog,
     ipcMain,
     Menu,
+    nativeTheme,
     shell,
   } = electron;
 
@@ -584,6 +585,10 @@ if (process.argv.includes('--mcp-server')) {
     if (target) {
       await shell.openExternal(target);
     }
+  });
+  ipcMain.handle('rinku:set-theme', (_event, preference) => {
+    if (!['light', 'dark', 'auto'].includes(preference)) throw new Error('Invalid theme preference.');
+    nativeTheme.themeSource = preference === 'auto' ? 'system' : preference;
   });
   ipcMain.handle('rinku:check-for-updates', async () => checkForUpdates({ manual: true }));
 

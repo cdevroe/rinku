@@ -52,6 +52,10 @@ Add `--write` to allow changes. The server prints its local URL and bearer token
 
 Connect an MCP client using `node /absolute/path/to/rinku/bin/rinku.js mcp serve` with `RINKU_MCP_ALLOWED_ROOTS` set to your library path. MCP is read-only by default; set `RINKU_MCP_READ_ONLY=false` to enable writes. See [MCP client configuration and tools](docs/cli-mcp.md#mcp).
 
+## Appearance
+
+Choose **Light**, **Dark**, or **Auto** in **Settings > Appearance**. Auto is the default and follows system appearance, including changes while Rinku is open. The setting is saved automatically on this device and applies across libraries.
+
 ## Keyboard Controls
 
 Open **Help > Keyboard Shortcuts** for the categorized in-app reference. Use Command on macOS and Control on Windows/Linux:

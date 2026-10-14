@@ -1010,9 +1010,54 @@ function renderUpdateSettings(container) {
   container.appendChild(section);
 }
 
+function renderAppearanceSettings(container) {
+  const section = document.createElement('section');
+  section.className = 'settingsSection';
+  const heading = document.createElement('h3');
+  heading.textContent = 'Appearance';
+  const note = document.createElement('p');
+  note.className = 'settingsHelp';
+  note.textContent = 'Choose how Rinku looks. Your choice is saved automatically and applies to every library on this device.';
+
+  const choices = document.createElement('fieldset');
+  choices.className = 'themeChoices';
+  const legend = document.createElement('legend');
+  legend.textContent = 'Theme';
+  choices.appendChild(legend);
+  for (const [value, name, description] of [
+    ['light', 'Light', 'Always use light colors.'],
+    ['dark', 'Dark', 'Always use dark colors.'],
+    ['auto', 'Auto', 'Follow your system appearance.'],
+  ]) {
+    const label = document.createElement('label');
+    label.className = 'themeChoice';
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = 'theme';
+    input.value = value;
+    input.checked = window.rinkuTheme.getPreference() === value;
+    input.setAttribute('aria-label', name);
+    input.addEventListener('change', () => {
+      if (input.checked) window.rinkuTheme.setPreference(value);
+    });
+    const text = document.createElement('span');
+    const title = document.createElement('strong');
+    title.textContent = name;
+    const help = document.createElement('span');
+    help.className = 'settingsHelp';
+    help.textContent = description;
+    text.append(title, help);
+    label.append(input, text);
+    choices.appendChild(label);
+  }
+  section.append(heading, note, choices);
+  container.appendChild(section);
+}
+
 function renderSettingsTabs(container) {
   const tabs = [
     { id: 'library', label: 'Library', iconName: 'folder' },
+    { id: 'appearance', label: 'Appearance', iconName: 'circle' },
     { id: 'organization', label: 'Organization', iconName: 'tag', disabled: !state.libraryRoot },
     { id: 'capture', label: 'Capture', iconName: 'download', disabled: !state.libraryRoot },
     { id: 'updates', label: 'Updates', iconName: 'rotateCcw' },
@@ -1037,12 +1082,13 @@ function renderSettingsTabs(container) {
 }
 
 function renderSettingsPage() {
-  if (!state.libraryRoot && state.settingsTab !== 'updates') {
+  if (!state.libraryRoot && !['appearance', 'updates'].includes(state.settingsTab)) {
     state.settingsTab = 'library';
   }
 
   const titles = {
     library: 'Library',
+    appearance: 'Appearance',
     organization: 'Organization',
     capture: 'Capture',
     updates: 'Updates',
@@ -1057,7 +1103,9 @@ function renderSettingsPage() {
   const page = document.createElement('div');
   page.className = 'settingsPage';
 
-  if (state.settingsTab === 'organization') {
+  if (state.settingsTab === 'appearance') {
+    renderAppearanceSettings(page);
+  } else if (state.settingsTab === 'organization') {
     renderOrganizationSettings(page);
   } else if (state.settingsTab === 'capture') {
     renderCaptureSettingsPage(page);

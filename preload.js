@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('rinku', {
     return result;
   },
   checkForUpdates: () => ipcRenderer.invoke('rinku:check-for-updates'),
+  setTheme: (preference) => ipcRenderer.invoke('rinku:set-theme', preference),
   onCommand: (callback) => {
     const handler = (_event, command) => callback(command);
     ipcRenderer.on('rinku:command', handler);

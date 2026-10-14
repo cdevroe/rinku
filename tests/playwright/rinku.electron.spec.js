@@ -239,6 +239,41 @@ test('first run requires a library and settings owns library actions', async () 
     await expect(page.locator('.settingsPage').getByRole('button', { name: /Open/ })).toBeVisible();
     await expect(page.locator('.settingsPage').getByRole('button', { name: /Create/ })).toBeVisible();
     await expect(page.locator('.settingsPage').getByRole('button', { name: /Import/ })).toBeVisible();
+
+    // Appearance is available before opening a library.
+    await filterButton(page, 'Appearance').click();
+    await expect(page.locator('#listTitle')).toHaveText('Appearance');
+    await expect(page.getByRole('radio', { name: 'Auto', exact: true })).toBeChecked();
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.getByRole('radio', { name: 'Light', exact: true }).check();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await expect.poll(() => app.electronApp.evaluate(({ nativeTheme }) => nativeTheme.themeSource)).toBe('light');
+    await expect(page.locator('.settingsPage')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await page.emulateMedia({ colorScheme: 'light' });
+    await page.getByRole('radio', { name: 'Dark', exact: true }).check();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect.poll(() => app.electronApp.evaluate(({ nativeTheme }) => nativeTheme.themeSource)).toBe('dark');
+    await expect(page.locator('.settingsPage')).toHaveCSS('background-color', 'rgb(24, 37, 48)');
+    await page.screenshot({ path: test.info().outputPath('appearance-dark.png') });
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.locator('#settingsButton').click();
+    await filterButton(page, 'Appearance').click();
+    await expect(page.getByRole('radio', { name: 'Dark', exact: true })).toBeChecked();
+    await page.getByRole('radio', { name: 'Auto', exact: true }).check();
+    await expect.poll(() => app.electronApp.evaluate(({ nativeTheme }) => nativeTheme.themeSource)).toBe('system');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.emulateMedia({ colorScheme: 'light' });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await page.evaluate(() => localStorage.setItem('rinku.theme', 'invalid-theme'));
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    await page.locator('#settingsButton').click();
+    await filterButton(page, 'Appearance').click();
+    await expect(page.getByRole('radio', { name: 'Auto', exact: true })).toBeChecked();
   } finally {
     await cleanup([app && app.userDataDir], app && app.electronApp);
   }
@@ -490,6 +525,10 @@ test('rows open URLs while circle and info controls act independently', async ()
     await activeRow.getByLabel('Info', { exact: true }).click();
     await expect(page.locator('#detailTitle')).toHaveText('Cooking Home Read');
     await expect(page.locator('#detailPane')).toBeVisible();
+    await page.evaluate(() => window.rinkuTheme.setPreference('dark'));
+    await expect(activeRow).toHaveCSS('background-color', 'rgb(34, 55, 69)');
+    await expect(page.locator('#detailPane')).toHaveCSS('background-color', 'rgb(29, 45, 58)');
+    await page.screenshot({ path: test.info().outputPath('links-and-details-dark.png') });
     await expect(page.locator('#detailPane').getByRole('button', { name: /^(Open|Archive|Restore)$/ })).toHaveCount(0);
     expect(await electronApp.evaluate(() => globalThis.__rinkuOpenCount)).toBe(2);
     await page.locator('#detailClose').click();

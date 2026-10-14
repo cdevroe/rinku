@@ -5,6 +5,7 @@
 }
 
 :root {
+  color-scheme: light;
   --link-row-height: 98px;
   --app-bg: #eef4f7;
   --rail: #20344a;
@@ -14,8 +15,12 @@
   --side-muted: #8fa6b7;
   --surface: #ffffff;
   --surface-soft: #f2f7fa;
+  --surface-tint: #eef8fc;
+  --surface-selected: #f7fbfd;
   --text: #203247;
   --muted: #7d8997;
+  --text-secondary: #6d8190;
+  --text-facets: #6e8798;
   --border: #dce5ec;
   --border-soft: #edf2f5;
   --accent: #55b8df;
@@ -23,6 +28,29 @@
   --danger: #f25f5c;
   --shadow: 0 18px 45px rgba(22, 42, 60, .12);
   --radius: 8px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg: #111b24;
+  --rail: #101d2b;
+  --rail-deep: #0c1722;
+  --side: #122738;
+  --side-soft: #1b3447;
+  --side-muted: #9ab2c3;
+  --surface: #182530;
+  --surface-soft: #1d2d3a;
+  --surface-tint: #203b4b;
+  --surface-selected: #223745;
+  --text: #e4edf4;
+  --muted: #a1b1bf;
+  --text-secondary: #b4c4d0;
+  --text-facets: #9abfd4;
+  --border: #3b4e5f;
+  --border-soft: #2c3d4b;
+  --accent: #71c8ed;
+  --accent-strong: #43b4e2;
+  --shadow: 0 18px 45px rgba(0, 0, 0, .35);
 }
 
 html,
@@ -343,7 +371,7 @@ textarea {
 .filterIcon {
   width: 16px;
   height: 16px;
-  color: #7890a2;
+  color: var(--muted);
 }
 
 .labelDot {
@@ -489,7 +517,7 @@ textarea {
 
 .settingsForm h3 {
   margin: 20px 0 2px;
-  color: #6d8190;
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: .08em;
@@ -508,12 +536,12 @@ textarea {
 
 .settingsForm input {
   border-color: var(--border);
-  background: #ffffff;
+  background: var(--surface);
   color: var(--text);
 }
 
 .settingsForm input::placeholder {
-  color: #9aa8b3;
+  color: var(--muted);
 }
 
 .settingsForm input[type="color"] {
@@ -530,7 +558,7 @@ textarea {
   gap: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--surface);
   padding: 18px;
   margin-bottom: 18px;
 }
@@ -584,7 +612,7 @@ textarea {
   justify-content: center;
   border: 1px solid color-mix(in oklab, var(--accent) 46%, var(--border));
   border-radius: 8px;
-  background: #eef8fc;
+  background: var(--surface-tint);
   color: var(--text);
   padding: 7px 10px;
   text-decoration: none;
@@ -651,7 +679,7 @@ textarea {
   left: 11px;
   width: 15px;
   height: 15px;
-  color: #8ba0ad;
+  color: var(--muted);
   transform: translateY(-50%);
 }
 
@@ -690,7 +718,7 @@ textarea {
 .listKicker {
   display: block;
   margin-bottom: 5px;
-  color: #8393a1;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: .08em;
@@ -707,7 +735,7 @@ textarea {
   min-width: 42px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  color: #7b8997;
+  color: var(--muted);
   font-size: 12px;
   line-height: 24px;
   padding: 0 8px;
@@ -733,7 +761,7 @@ textarea {
   margin: 24px auto;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--surface);
   padding: 24px;
   box-shadow: 0 12px 32px rgba(22, 42, 60, .08);
 }
@@ -759,13 +787,54 @@ textarea {
   line-height: 1.55;
 }
 
+.themeChoices {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0 0;
+  border: 0;
+  padding: 0;
+}
+
+.themeChoices legend {
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.themeChoice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 16px;
+  cursor: pointer;
+}
+
+.themeChoice:has(input:checked) {
+  border-color: var(--accent-strong);
+  background: var(--surface-tint);
+}
+
+.themeChoice input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent-strong);
+}
+
+.themeChoice > span {
+  display: grid;
+  gap: 4px;
+}
+
 .settingsSection {
   display: grid;
   gap: 14px;
 }
 
 .settingsKicker {
-  color: #6d8190;
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: .08em;
@@ -816,7 +885,7 @@ textarea {
 }
 
 .linkRow.active {
-  background: #f7fbfd;
+  background: var(--surface-selected);
   box-shadow: inset 4px 0 0 var(--label-color);
 }
 
@@ -856,7 +925,7 @@ textarea {
   border: 0;
   border-radius: 50%;
   background: transparent;
-  color: #9aaab6;
+  color: var(--muted);
   padding: 0;
   cursor: pointer;
   transform: translateY(-50%);
@@ -934,7 +1003,7 @@ textarea {
 .linkMeta {
   overflow: hidden;
   margin-top: 8px;
-  color: #8b96a1;
+  color: var(--muted);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -943,7 +1012,7 @@ textarea {
 .linkFacets {
   overflow: hidden;
   margin-top: 8px;
-  color: #6e8798;
+  color: var(--text-facets);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -973,8 +1042,8 @@ textarea {
   min-height: 32px;
   place-items: center;
   border-radius: 8px;
-  background: rgba(255, 255, 255, .94);
-  color: #7391a2;
+  background: var(--surface);
+  color: var(--muted);
   padding: 0;
 }
 
@@ -1018,7 +1087,7 @@ textarea {
 }
 
 .detailDomain {
-  color: #7890a2;
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -1032,7 +1101,7 @@ textarea {
 
 .detailUrl {
   overflow-wrap: anywhere;
-  color: #748897;
+  color: var(--muted);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -1045,7 +1114,7 @@ textarea {
 .detailMeta label {
   display: grid;
   gap: 6px;
-  color: #6d8190;
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -1054,7 +1123,7 @@ textarea {
 .contextField legend,
 .tagField legend,
 .notesLabel {
-  color: #6d8190;
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: .07em;
@@ -1108,7 +1177,7 @@ textarea {
 
 .selectedLabelName {
   min-width: 0;
-  color: #6e8190;
+  color: var(--text-secondary);
   font-size: 12px;
   font-weight: 600;
 }
@@ -1126,7 +1195,7 @@ textarea {
   max-width: 100%;
   border: 1px solid var(--border);
   border-radius: 4px;
-  background: #ffffff;
+  background: var(--surface);
   color: var(--text);
   padding: 6px 8px;
   font-size: 12px;
@@ -1138,7 +1207,7 @@ textarea {
 }
 
 .contextEmpty {
-  color: #8b9ba8;
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -1159,7 +1228,7 @@ textarea {
   min-height: 39px;
   border: 1px solid var(--border);
   border-radius: 4px;
-  background: #ffffff;
+  background: var(--surface);
   padding: 6px;
 }
 
@@ -1229,7 +1298,7 @@ textarea {
 
 .detailSaveState {
   min-height: 18px;
-  color: #7d91a0;
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -1292,7 +1361,7 @@ textarea {
 
 .shortcutCategory h3 {
   margin: 0 0 8px;
-  color: #536e80;
+  color: var(--text-secondary);
   font-size: 13px;
   font-weight: 700;
 }
@@ -1341,12 +1410,12 @@ textarea {
 
 .shortcutsDialog kbd {
   font: inherit;
-  color: #536e80;
+  color: var(--text-secondary);
 }
 
 .shortcutsDialog p {
   margin: 0;
-  color: #536e80;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -1428,7 +1497,7 @@ textarea {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  color: #657989;
+  color: var(--text-secondary);
   box-shadow: var(--shadow);
   font-size: 13px;
   opacity: 0;
@@ -1460,7 +1529,7 @@ textarea {
   display: grid;
   height: 160px;
   place-items: center;
-  color: #8494a1;
+  color: var(--muted);
   font-size: 13px;
 }
 
