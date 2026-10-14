@@ -50,6 +50,7 @@ if (process.argv.includes('--mcp-server')) {
     paramsToInput,
   } = require('./lib/captureServer');
   const { importUnmarkExport } = require('./lib/importers');
+  const { createMcpClientConfig } = require('./lib/mcpClientConfig');
   const safariExtension = require('./lib/safariExtension').createSafariExtension({
     isPackaged: app.isPackaged,
     resourcesPath: process.resourcesPath,
@@ -556,6 +557,14 @@ if (process.argv.includes('--mcp-server')) {
   ipcMain.handle('rinku:choose-unmark-export', () => chooseFile('Choose Unmark Export JSON', [{ name: 'JSON', extensions: ['json'] }]));
   ipcMain.handle('rinku:create-library', async (_event, libraryRoot) => createLibrary(libraryRoot, { allowExisting: true }));
   ipcMain.handle('rinku:read-settings', async (_event, libraryRoot) => readSettings(libraryRoot));
+  ipcMain.handle('rinku:mcp-config', (_event, allowWrites) => createMcpClientConfig({
+    libraryRoot: currentLibraryRoot,
+    allowWrites,
+    executablePath: process.execPath,
+    appPath: app.getAppPath(),
+    isPackaged: app.isPackaged,
+    appImage: process.env.APPIMAGE,
+  }));
   ipcMain.handle('rinku:update-settings', async (_event, libraryRoot, patch) => updateSettings(libraryRoot, patch || {}));
   ipcMain.handle('rinku:set-current-library', async (_event, libraryRoot) => {
     currentLibraryRoot = String(libraryRoot || '');

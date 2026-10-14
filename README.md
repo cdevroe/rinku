@@ -52,7 +52,7 @@ npm run api:server -- --library /absolute/path/to/Library
 
 Add `--write` to allow changes. The server prints its local URL and bearer token at startup. See [HTTP API setup, routes, and examples](docs/api.md).
 
-Connect an MCP client using `node /absolute/path/to/rinku/bin/rinku.js mcp serve` with `RINKU_MCP_ALLOWED_ROOTS` set to your library path. MCP is read-only by default; set `RINKU_MCP_READ_ONLY=false` to enable writes. See [MCP client configuration and tools](docs/cli-mcp.md#mcp).
+In the installed app, open **Settings → MCP** to copy a configuration with your library and app paths already filled in. No source checkout or separate Node.js installation is needed. Access is read-only by default; check the option to allow edits before copying if desired. See [MCP client configuration and tools](docs/cli-mcp.md#mcp), including setup from a source checkout.
 
 ## Appearance
 

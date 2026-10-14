@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('rinku', {
   chooseUnmarkExport: () => ipcRenderer.invoke('rinku:choose-unmark-export'),
   createLibrary: (libraryRoot) => ipcRenderer.invoke('rinku:create-library', libraryRoot),
   readSettings: (libraryRoot) => ipcRenderer.invoke('rinku:read-settings', libraryRoot),
+  mcpConfig: (allowWrites) => ipcRenderer.invoke('rinku:mcp-config', allowWrites),
   updateSettings: (libraryRoot, patch) => ipcRenderer.invoke('rinku:update-settings', libraryRoot, patch),
   setCurrentLibrary: (libraryRoot) => ipcRenderer.invoke('rinku:set-current-library', libraryRoot),
   rebuildIndex: (libraryRoot) => ipcRenderer.invoke('rinku:rebuild-index', libraryRoot),

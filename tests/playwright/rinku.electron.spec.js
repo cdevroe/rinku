@@ -3,6 +3,8 @@ const os = require('os');
 const path = require('path');
 const { test, expect } = require('@playwright/test');
 const { _electron: electron } = require('playwright');
+const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
+const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
 
 const electronPath = require('electron');
 const {
@@ -241,6 +243,10 @@ test('first run requires a library and settings owns library actions', async () 
     await expect(page.locator('.settingsPage').getByRole('button', { name: /Create/ })).toBeVisible();
     await expect(page.locator('.settingsPage').getByRole('button', { name: /Import/ })).toBeVisible();
 
+    await filterButton(page, 'MCP').click();
+    await expect(page.getByText('Open or create a library to connect your agents to Rinku.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Copy configuration' })).toHaveCount(0);
+
     // Appearance is available before opening a library.
     await filterButton(page, 'Appearance').click();
     await expect(page.locator('#listTitle')).toHaveText('Appearance');
@@ -277,6 +283,89 @@ test('first run requires a library and settings owns library actions', async () 
     await expect(page.getByRole('radio', { name: 'Auto', exact: true })).toBeChecked();
   } finally {
     await cleanup([app && app.userDataDir], app && app.electronApp);
+  }
+});
+
+test('MCP settings copies a working connection using the app runtime and selected library', async () => {
+  const fixture = await seedLibrary();
+  let app;
+  const clients = [];
+  async function connect(config) {
+    const client = new Client({ name: 'rinku-settings-test', version: '1.0.0' });
+    clients.push(client);
+    await client.connect(new StdioClientTransport({
+      // AppImage's shell launcher needs standard utilities; the macOS and
+      // Windows app binaries can launch with an entirely empty PATH.
+      ...config, env: { ...config.env, PATH: process.platform === 'linux' ? '/usr/bin:/bin' : '' }, cwd: fixture.root, stderr: 'pipe',
+    }));
+    return client;
+  }
+  try {
+    app = await launchRinku({ libraryRoot: fixture.libraryRoot });
+    const { page, electronApp } = app;
+    await page.locator('#settingsButton').click();
+    await filterButton(page, 'MCP').click();
+    await expect(page.locator('#listTitle')).toHaveText('MCP');
+    const preview = page.getByRole('textbox', { name: 'MCP configuration' });
+    const copy = page.getByRole('button', { name: 'Copy configuration', exact: true });
+    await expect(copy).toBeEnabled();
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (text) => { globalThis.__copiedMcp = text; } } });
+    });
+    await copy.click();
+    await expect(page.getByText('Configuration copied.', { exact: true })).toBeVisible();
+    const copied = await page.evaluate(() => globalThis.__copiedMcp);
+    expect(copied).toBe(await preview.inputValue());
+    const config = JSON.parse(copied).mcpServers.rinku;
+    expect(config.env.RINKU_MCP_ALLOWED_ROOTS).toBe(fixture.libraryRoot);
+    expect(config.env.RINKU_MCP_READ_ONLY).toBe('true');
+    expect(config.command).toBe(await electronApp.evaluate(() => (
+      process.platform === 'linux' && process.env.APPIMAGE ? process.env.APPIMAGE : process.execPath
+    )));
+    const readonly = await connect(config);
+    expect((await readonly.listTools()).tools.some(tool => tool.name === 'rinku_list_links')).toBe(true);
+    const listed = await readonly.callTool({ name: 'rinku_list_links', arguments: { libraryRoot: fixture.libraryRoot } });
+    expect(listed.structuredContent.total).toBe(5);
+    const denied = await readonly.callTool({ name: 'rinku_create_link', arguments: { libraryRoot: fixture.libraryRoot, url: 'https://example.com/blocked' } });
+    expect(denied.isError).toBe(true);
+    expect(denied.content[0].text).toContain('read-only');
+    const outside = await readonly.callTool({ name: 'rinku_list_links', arguments: { libraryRoot: fixture.root } });
+    expect(outside.isError).toBe(true);
+
+    await page.getByRole('checkbox', { name: 'Allow agents to save, edit, and archive links' }).check();
+    await expect(preview).toHaveValue(/"RINKU_MCP_READ_ONLY": "false"/);
+    await copy.click();
+    const writable = await connect(JSON.parse(await page.evaluate(() => globalThis.__copiedMcp)).mcpServers.rinku);
+    const saved = await writable.callTool({ name: 'rinku_create_link', arguments: { libraryRoot: fixture.libraryRoot, url: 'https://example.com/from-settings', title: 'Saved through MCP' } });
+    expect(saved.isError).not.toBe(true);
+    expect(saved.structuredContent.title).toBe('Saved through MCP');
+    await page.screenshot({ path: test.info().outputPath('mcp-light.png') });
+    await page.evaluate(() => window.rinkuTheme.setPreference('dark'));
+    await page.screenshot({ path: test.info().outputPath('mcp-dark.png') });
+
+    const otherLibrary = path.join(fixture.root, 'Another Library');
+    await createLibrary(otherLibrary);
+    await electronApp.evaluate(({ dialog }, libraryRoot) => {
+      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [libraryRoot] });
+    }, otherLibrary);
+    await filterButton(page, 'Library').click();
+    await page.locator('.settingsPage').getByRole('button', { name: 'Open', exact: true }).click();
+    await page.locator('#settingsButton').click();
+    await filterButton(page, 'MCP').click();
+    await expect(preview).toHaveValue(new RegExp('Another Library'));
+    const nextConfig = JSON.parse(await preview.inputValue()).mcpServers.rinku;
+    expect(nextConfig.env.RINKU_MCP_ALLOWED_ROOTS).toBe(otherLibrary);
+    expect(nextConfig.env.RINKU_MCP_READ_ONLY).toBe('true');
+
+    // The copied connection still starts with the desktop app closed.
+    await electronApp.close();
+    app.electronApp = null;
+    const independent = await connect(nextConfig);
+    const libraries = await independent.callTool({ name: 'rinku_list_libraries', arguments: {} });
+    expect(JSON.stringify(libraries.structuredContent)).toContain(otherLibrary);
+  } finally {
+    for (const client of clients) await client.close();
+    await cleanup([fixture.root, app && app.userDataDir], app && app.electronApp);
   }
 });
 

@@ -34,7 +34,22 @@ Adding an existing URL returns its saved record without overwriting metadata or 
 
 ## MCP
 
-Rinku uses the [official MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk/tree/v1.x) to serve tools over newline-delimited JSON-RPC stdio. It runs independently of Electron. Start it directly:
+### Connect from the installed app
+
+1. Open your library in Rinku, then go to **Settings → MCP**.
+2. Leave access read-only, or check **Allow agents to save, edit, and archive links**.
+3. Click **Copy configuration** and add it to your agent's local MCP server configuration. If the client already has an `mcpServers` object, merge the `rinku` entry into it.
+4. Restart or reconnect the agent. Ask it to list your Rinku libraries or search your saved links.
+
+The configuration includes the current library and app paths. It starts the MCP server with the app's bundled runtime: users do not need a source checkout, npm, or a separate Node.js installation. The desktop window can stay closed. Clients that use a different configuration format should copy the `command`, `args`, and `env` fields into their local stdio server settings.
+
+The access checkbox only changes the generated configuration; it does not change existing agent connections. Replace their configuration and reconnect to change access. Copy again after moving the app or library, or when connecting a different library. Install Rinku in its permanent location first (for example, Applications on macOS rather than running from the DMG).
+
+The installed configuration uses Electron's [Node mode](https://www.electronjs.org/docs/latest/api/environment-variables#electron_run_as_node) so the server can use stdio without launching the UI. Linux AppImages use the persistent AppImage filename and resolve the bundled server from the new mount's `APPDIR` at launch; temporary mount paths are not saved in the configuration. Keep the `runAsNode` Electron fuse enabled when packaging Rinku.
+
+### Connect from a source checkout
+
+Rinku uses the [official MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk/tree/v1.x) to serve tools over newline-delimited JSON-RPC stdio. With Node.js and the project's dependencies installed, start it directly:
 
 ```sh
 node /absolute/path/to/rinku/bin/rinku.js mcp serve
@@ -60,6 +75,8 @@ Use this configuration with an MCP client that supports local stdio servers:
 ```
 
 Use an absolute path to Node if your client does not inherit your shell's PATH. Configuration file locations depend on the client.
+
+### Access and tools
 
 The server is read-only by default. Enable writes explicitly:
 

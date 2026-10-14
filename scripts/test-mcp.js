@@ -3,6 +3,7 @@ const fs = require('fs').promises;
 const os = require('os');
 const path = require('path');
 const { callTool } = require('../lib/mcpServer');
+const { createMcpClientConfig } = require('../lib/mcpClientConfig');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
 const { EmptyResultSchema } = require('@modelcontextprotocol/sdk/types.js');
@@ -12,7 +13,39 @@ function parseToolResult(result) {
   return JSON.parse(result.content[0].text);
 }
 
+function testClientConfig() {
+  for (const fixture of [
+    { platform: 'darwin', executablePath: '/Applications/Rinku.app/Contents/MacOS/Rinku', appPath: '/Applications/Rinku.app/Contents/Resources/app.asar', libraryRoot: '/Users/test/My Library' },
+    { platform: 'win32', executablePath: 'C:\\Users\\Test\\AppData\\Local\\Programs\\Rinku\\Rinku.exe', appPath: 'C:\\Users\\Test\\AppData\\Local\\Programs\\Rinku\\resources\\app.asar', libraryRoot: 'C:\\Users\\Test\\My Library' },
+    { platform: 'linux', executablePath: '/opt/Rinku/rinku', appPath: '/opt/Rinku/resources/app.asar', libraryRoot: '/home/test/My Library' },
+  ]) {
+    const config = createMcpClientConfig({ ...fixture, isPackaged: true }).mcpServers.rinku;
+    assert.strictEqual(config.command, fixture.executablePath);
+    assert.strictEqual(config.env.ELECTRON_RUN_AS_NODE, '1');
+    assert.strictEqual(config.env.RINKU_MCP_ALLOWED_ROOTS, fixture.libraryRoot);
+    assert.strictEqual(config.env.RINKU_MCP_READ_ONLY, 'true');
+    assert.deepStrictEqual(config.args.slice(1), ['mcp', 'serve']);
+    assert(config.args[0].startsWith(fixture.appPath));
+    assert.strictEqual(JSON.parse(JSON.stringify(config)).command, fixture.executablePath);
+    assert.strictEqual(createMcpClientConfig({ ...fixture, allowWrites: true }).mcpServers.rinku.env.RINKU_MCP_READ_ONLY, 'false');
+  }
+  const appImageOptions = { platform: 'linux', isPackaged: true, executablePath: '/tmp/.mount_old/rinku', appPath: '/tmp/.mount_old/resources/app.asar', appImage: '/home/test/Apps/Rinku.AppImage', libraryRoot: '/home/test/Library' };
+  const appImage = createMcpClientConfig(appImageOptions).mcpServers.rinku;
+  assert.strictEqual(appImage.command, appImageOptions.appImage);
+  assert(!JSON.stringify(appImage).includes('.mount_old'), 'AppImage configuration must survive remounts');
+  assert.strictEqual(appImage.args[0], '-e');
+  assert(appImage.args[1].includes('process.env.APPDIR'));
+  assert.deepStrictEqual(appImage.args.slice(2), ['--', '--no-sandbox'], 'keep AppRun Chromium flags out of Node options');
+  const development = createMcpClientConfig({ ...appImageOptions, isPackaged: false }).mcpServers.rinku;
+  assert.strictEqual(development.command, appImageOptions.executablePath, 'development must ignore inherited APPIMAGE');
+  assert.throws(() => createMcpClientConfig({ ...appImageOptions, libraryRoot: '' }), /Open a library/);
+  assert.throws(() => createMcpClientConfig({ ...appImageOptions, libraryRoot: 'relative' }), /absolute/);
+  assert.throws(() => createMcpClientConfig({ ...appImageOptions, libraryRoot: '/home/test/Library:Private' }), /path containing/);
+  assert.throws(() => createMcpClientConfig({ ...appImageOptions, platform: 'win32', libraryRoot: 'C:\\Library;Private' }), /path containing/);
+}
+
 async function run() {
+  testClientConfig();
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'rinku-mcp-'));
   const libraryRoot = path.join(root, 'Library');
   const writableConfig = {

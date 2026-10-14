@@ -842,6 +842,29 @@ textarea {
   gap: 14px;
 }
 
+.mcpWriteAccess {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.mcpWriteAccess input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent-strong);
+}
+
+.mcpConfig {
+  width: 100%;
+  background: var(--surface-soft);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .settingsKicker {
   color: var(--text-secondary);
   font-size: 11px;

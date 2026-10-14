@@ -42,11 +42,13 @@ const FEATHER_ICONS = {
   check: '<polyline points="20 6 9 17 4 12"></polyline>',
   chevronDown: '<polyline points="6 9 12 15 18 9"></polyline>',
   circle: '<circle cx="12" cy="12" r="10"></circle>',
+  copy: '<rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
   download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>',
   externalLink: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>',
   folder: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>',
   hash: '<line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line>',
   info: '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>',
+  link: '<path d="M10 13a5 5 0 0 0 7 .5l3-3a5 5 0 0 0-7-7l-1.7 1.7"></path><path d="M14 11a5 5 0 0 0-7-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"></path>',
   list: '<line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>',
   plus: '<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>',
   rotateCcw: '<polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>',
@@ -989,6 +991,73 @@ function renderCaptureSettingsPage(container) {
   renderCaptureSettings(container);
 }
 
+function renderMcpSettings(container) {
+  if (!state.libraryRoot) {
+    container.appendChild(emptySettingsMessage('Open or create a library to connect your agents to Rinku.'));
+    return;
+  }
+
+  const section = document.createElement('section');
+  section.className = 'settingsSection';
+  const heading = document.createElement('h3');
+  heading.textContent = 'Connect your agents';
+  const note = document.createElement('p');
+  note.className = 'settingsHelp';
+  note.textContent = 'Copy this configuration into an agent that supports local MCP servers, then reconnect the agent. It uses your installed Rinku app; no source code or separate Node.js installation is needed. Rinku’s window can stay closed.';
+  const pathLabel = document.createElement('div');
+  pathLabel.className = 'settingsKicker';
+  pathLabel.textContent = 'Library';
+  const pathValue = document.createElement('div');
+  pathValue.className = 'settingsPathValue';
+  pathValue.textContent = state.libraryRoot;
+
+  const access = document.createElement('label');
+  access.className = 'mcpWriteAccess';
+  const allowWrites = document.createElement('input');
+  allowWrites.type = 'checkbox';
+  access.append(allowWrites, document.createTextNode('Allow agents to save, edit, and archive links'));
+  const accessNote = document.createElement('p');
+  accessNote.className = 'settingsHelp';
+  accessNote.textContent = 'Read-only by default. This choice applies to the configuration you copy. To change an existing connection, replace its configuration and reconnect.';
+
+  const preview = document.createElement('textarea');
+  preview.className = 'mcpConfig';
+  preview.readOnly = true;
+  preview.spellcheck = false;
+  preview.setAttribute('aria-label', 'MCP configuration');
+  preview.rows = 14;
+  const status = document.createElement('p');
+  status.className = 'settingsHelp';
+  status.setAttribute('role', 'status');
+  const copy = actionButton('Copy configuration', 'copy', async () => {
+    await navigator.clipboard.writeText(preview.value);
+    status.textContent = 'Configuration copied.';
+  }, { primary: true });
+  let revision = 0;
+  async function refresh() {
+    const request = ++revision;
+    copy.disabled = true;
+    preview.value = '';
+    status.textContent = 'Preparing configuration…';
+    try {
+      const config = await window.rinku.mcpConfig(allowWrites.checked);
+      if (request !== revision) return;
+      preview.value = JSON.stringify(config, null, 2);
+      copy.disabled = false;
+      status.textContent = '';
+    } catch (error) {
+      if (request === revision) status.textContent = error.message || 'Could not prepare MCP configuration.';
+    }
+  }
+  allowWrites.addEventListener('change', refresh);
+  const help = document.createElement('p');
+  help.className = 'settingsHelp';
+  help.textContent = 'Already have MCP servers configured? Add the rinku entry alongside them. Copy a new configuration if you move the app or library. When using several agents, coordinate edits to the same library.';
+  section.append(heading, note, pathLabel, pathValue, access, accessNote, preview, copy, status, help);
+  container.appendChild(section);
+  refresh();
+}
+
 function renderUpdateSettings(container) {
   const section = document.createElement('section');
   section.className = 'settingsSection';
@@ -1060,6 +1129,7 @@ function renderSettingsTabs(container) {
     { id: 'appearance', label: 'Appearance', iconName: 'circle' },
     { id: 'organization', label: 'Organization', iconName: 'tag', disabled: !state.libraryRoot },
     { id: 'capture', label: 'Capture', iconName: 'download', disabled: !state.libraryRoot },
+    { id: 'mcp', label: 'MCP', iconName: 'link' },
     { id: 'updates', label: 'Updates', iconName: 'rotateCcw' },
   ];
 
@@ -1082,7 +1152,7 @@ function renderSettingsTabs(container) {
 }
 
 function renderSettingsPage() {
-  if (!state.libraryRoot && !['appearance', 'updates'].includes(state.settingsTab)) {
+  if (!state.libraryRoot && !['appearance', 'mcp', 'updates'].includes(state.settingsTab)) {
     state.settingsTab = 'library';
   }
 
@@ -1091,6 +1161,7 @@ function renderSettingsPage() {
     appearance: 'Appearance',
     organization: 'Organization',
     capture: 'Capture',
+    mcp: 'MCP',
     updates: 'Updates',
   };
 
@@ -1109,6 +1180,8 @@ function renderSettingsPage() {
     renderOrganizationSettings(page);
   } else if (state.settingsTab === 'capture') {
     renderCaptureSettingsPage(page);
+  } else if (state.settingsTab === 'mcp') {
+    renderMcpSettings(page);
   } else if (state.settingsTab === 'updates') {
     renderUpdateSettings(page);
   } else {
