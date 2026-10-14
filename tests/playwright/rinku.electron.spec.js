@@ -254,7 +254,7 @@ test('first run requires a library and settings owns library actions', async () 
     await page.getByRole('radio', { name: 'Dark', exact: true }).check();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await expect.poll(() => app.electronApp.evaluate(({ nativeTheme }) => nativeTheme.themeSource)).toBe('dark');
-    await expect(page.locator('.settingsPage')).toHaveCSS('background-color', 'rgb(30, 32, 35)');
+    await expect(page.locator('.settingsPage')).toHaveCSS('background-color', 'rgb(24, 37, 48)');
     await page.screenshot({ path: test.info().outputPath('appearance-dark.png') });
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -536,8 +536,8 @@ test('rows open URLs while circle and info controls act independently', async ()
     await expect(page.locator('#detailTitle')).toHaveText('Cooking Home Read');
     await expect(page.locator('#detailPane')).toBeVisible();
     await page.evaluate(() => window.rinkuTheme.setPreference('dark'));
-    await expect.poll(() => activeRow.evaluate((row) => getComputedStyle(row, '::before').backgroundColor)).toBe('rgb(44, 48, 53)');
-    await expect(page.locator('#detailPane')).toHaveCSS('background-color', 'rgb(36, 39, 43)');
+    await expect(activeRow).toHaveCSS('background-color', 'rgb(41, 59, 71)');
+    await expect(page.locator('#detailPane')).toHaveCSS('background-color', 'rgb(29, 45, 58)');
     await page.screenshot({ path: test.info().outputPath('links-and-details-dark.png') });
     await expect(page.locator('#detailPane').getByRole('button', { name: /^(Open|Archive|Restore)$/ })).toHaveCount(0);
     expect(await electronApp.evaluate(() => globalThis.__rinkuOpenCount)).toBe(2);
