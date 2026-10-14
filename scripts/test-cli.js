@@ -44,6 +44,13 @@ async function run() {
     assert.strictEqual(link.label, 'read');
     assert.deepStrictEqual(link.tags, ['testing']);
     assert.deepStrictEqual(link.contexts, ['@Home']);
+    assert.strictEqual(link.duplicate, false);
+    result = await runCli(['links', 'add', link.url, '--title', 'Replacement', '--body', 'Replacement', '--json'], env);
+    const duplicate = JSON.parse(result.stdout);
+    assert.strictEqual(duplicate.duplicate, true);
+    assert.strictEqual(duplicate.id, link.id);
+    assert.strictEqual(duplicate.title, 'Example Article');
+    assert.strictEqual(duplicate.body, 'Notes');
 
     result = await runCli(['links', 'list', '--json'], env);
     const listed = JSON.parse(result.stdout);

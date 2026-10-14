@@ -30,6 +30,8 @@ Global options:
 
 The CLI stores the current selected library in the user's local config directory. For tests or portable use, set `RINKU_CONFIG_HOME`.
 
+Adding an existing URL returns its saved record without overwriting metadata or restoring it from the archive. The CLI's JSON output and the MCP `rinku_create_link` result include `duplicate: true` for an existing link and `duplicate: false` for a new one. Use `links update` or `rinku_update_link` to change saved information. Matching follows the [desktop URL rules](../README.md#saving-a-link-again).
+
 ## MCP
 
 Rinku uses the [official MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk/tree/v1.x) to serve tools over newline-delimited JSON-RPC stdio. It runs independently of Electron. Start it directly:

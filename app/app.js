@@ -1497,13 +1497,16 @@ function setCaptureReviewSaveState(message) {
   els.captureReviewSaveState.textContent = message || '';
 }
 
-function openCaptureReview(link) {
+function openCaptureReview(link, { duplicate = false } = {}) {
   if (!state.captureReview) captureReviewReturnFocus = document.activeElement;
   state.captureReview = link;
   state.captureReviewTags = Array.isArray(link.tags) ? link.tags : [];
   window.clearTimeout(captureReviewSaveTimer);
   captureReviewSaveTimer = null;
 
+  els.captureReviewNotice.textContent = duplicate
+    ? (link.status === 'archived' ? 'This link is already in your archive. You can edit it below.' : 'This link is already saved. You can edit it below.')
+    : 'Link added to your library.';
   els.captureReviewTitle.value = link.title || link.url || '';
   els.captureReviewUrl.textContent = [link.domain, link.url].filter(Boolean).join(' - ');
   renderCaptureReviewLabel(link.label);
@@ -2019,13 +2022,14 @@ async function quickAdd(event) {
   els.quickAddSubmit.disabled = true;
   els.quickAddUrl.disabled = true;
   try {
+    await flushDetailSave();
     const result = await window.rinku.createLink(state.libraryRoot, { url });
     els.quickAddUrl.value = '';
     setQuickAddExpanded(false);
-    setStatus('Link added.');
+    setStatus(result.duplicate ? 'Link already saved.' : 'Link added.');
     await refreshLinks({ reload: true });
     if (result && result.link) {
-      openCaptureReview(result.link);
+      openCaptureReview(result.link, { duplicate: result.duplicate });
     }
   } finally {
     state.quickAddPending = false;
@@ -2355,6 +2359,7 @@ function cacheElements() {
     'captureReviewDone',
     'captureReviewLabel',
     'captureReviewModal',
+    'captureReviewNotice',
     'captureReviewSaveState',
     'captureReviewTags',
     'captureReviewTitle',
@@ -2447,10 +2452,13 @@ async function init() {
     if (link) {
       updateCachedLink(link);
     }
-    setStatus(payload.updated ? 'Link updated.' : 'Link captured.');
-    refreshLinks({ reload: true }).then(() => {
+    setStatus(payload.updated ? 'Link updated.' : payload.duplicate ? 'Link already saved.' : 'Link captured.');
+    refreshLinks({ reload: true }).then(async () => {
       if (payload.review && link) {
-        openCaptureReview(link);
+        await flushDetailSave();
+        if (state.captureReview) await closeCaptureReview();
+        const current = await window.rinku.readLink(state.libraryRoot, link.id);
+        openCaptureReview(current, { duplicate: payload.duplicate });
       }
     }).catch(showError);
   });

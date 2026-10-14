@@ -166,6 +166,19 @@ async function run() {
     const updated = await readLink(libraryRoot, captured.link.id);
     assert.strictEqual(updated.body, 'Popup notes');
 
+    const repeatedPopup = await requestText(popupUrl);
+    assert.strictEqual(repeatedPopup.statusCode, 200);
+    assert(repeatedPopup.body.includes('This link is already saved.'));
+    assert(repeatedPopup.body.includes('Updated Popup Link'));
+    assert(repeatedPopup.body.includes('Popup notes'));
+    assert.strictEqual(captured.duplicate, true);
+    assert.strictEqual(captured.link.id, updated.id);
+    response = await requestJson(popupUrl);
+    assert.strictEqual(response.statusCode, 200);
+    assert.strictEqual(response.body.duplicate, true);
+    assert.strictEqual(response.body.link.id, updated.id);
+    assert.strictEqual((await listLinks(libraryRoot, { rebuild: true })).links.length, 3);
+
     const stopped = await server.stop();
     assert.strictEqual(stopped.running, false);
   } finally {

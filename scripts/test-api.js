@@ -53,6 +53,15 @@ async function run() {
       url: 'https://example.com/api', title: 'API Link', label: 'Read', tags: ['JavaScript'], contexts: ['Work'], body: 'Original notes',
     }, status: 201 })).data;
     assert.strictEqual(created.label, 'read');
+    assert.strictEqual(created.duplicate, false);
+    assert(spec.paths['/api/v1/links'].post.responses[200]);
+    const duplicate = (await request('/links', { method: 'POST', body: {
+      url: created.url, title: 'Replacement title', body: 'Replacement notes',
+    }, status: 200 })).data;
+    assert.strictEqual(duplicate.duplicate, true);
+    assert.strictEqual(duplicate.id, created.id);
+    assert.strictEqual(duplicate.title, 'API Link');
+    assert.strictEqual(duplicate.body, 'Original notes');
     const ref = encodeURIComponent(created.id);
     assert.strictEqual((await readLink(libraryRoot, created.id)).body, 'Original notes');
     assert.strictEqual((await request('/links?status=active&tag=javascript&limit=1')).data.total, 1);
@@ -93,10 +102,10 @@ async function run() {
     await request('/links', { method: 'POST', body: '{}', headers: { 'Content-Type': 'text/plain' }, status: 415 });
     await request('/links', { method: 'POST', body: JSON.stringify({ body: 'a'.repeat(MAX_BODY_BYTES + 1) }), status: 413 });
     await request(`/links?libraryRoot=${encodeURIComponent(outside)}`, { status: 403 });
-    await fs.symlink(outside, path.join(root, 'escape'));
+    await fs.symlink(outside, path.join(root, 'escape'), process.platform === 'win32' ? 'junction' : 'dir');
     await request(`/links?libraryRoot=${encodeURIComponent(path.join(root, 'escape'))}`, { status: 403 });
     await request('/libraries', { method: 'POST', body: { libraryRoot: path.join(root, 'escape', 'NewLibrary') }, status: 403 });
-    await fs.symlink(outside, path.join(libraryRoot, 'links', 'escape'));
+    await fs.symlink(outside, path.join(libraryRoot, 'links', 'escape'), process.platform === 'win32' ? 'junction' : 'dir');
     await request('/links', { status: 403 });
     await fs.unlink(path.join(libraryRoot, 'links', 'escape'));
 

@@ -254,7 +254,7 @@ test('first run requires a library and settings owns library actions', async () 
     await page.getByRole('radio', { name: 'Dark', exact: true }).check();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await expect.poll(() => app.electronApp.evaluate(({ nativeTheme }) => nativeTheme.themeSource)).toBe('dark');
-    await expect(page.locator('.settingsPage')).toHaveCSS('background-color', 'rgb(24, 37, 48)');
+    await expect(page.locator('.settingsPage')).toHaveCSS('background-color', 'rgb(30, 32, 35)');
     await page.screenshot({ path: test.info().outputPath('appearance-dark.png') });
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -374,6 +374,16 @@ test('Safari capture protocol saves the page title and opens review', async () =
     const link = result.links.find((link) => link.url === address);
     expect(link).toBeTruthy();
     expect(link.title).toBe(title);
+    await app.page.locator('#captureReviewBody').fill('Keep these pending notes.');
+    await app.electronApp.evaluate(({ app }, captureURL) => {
+      app.emit('open-url', { preventDefault() {} }, captureURL);
+    }, captureURL);
+    await expect(app.page.locator('#captureReviewNotice')).toHaveText('This link is already saved. You can edit it below.');
+    await expect(app.page.locator('#captureReviewBody')).toHaveValue('Keep these pending notes.');
+    await app.page.locator('#captureReviewDone').click();
+    await expect(app.page.locator('#captureReviewModal')).toBeHidden();
+    expect((await listLinks(fixture.libraryRoot, { rebuild: true })).links.length).toBe(result.links.length);
+    expect((await readCurrentLink(fixture.libraryRoot, link.id)).body).toBe('Keep these pending notes.');
   } finally { await cleanup([fixture.root, app && app.userDataDir], app && app.electronApp); }
 });
 
@@ -526,8 +536,8 @@ test('rows open URLs while circle and info controls act independently', async ()
     await expect(page.locator('#detailTitle')).toHaveText('Cooking Home Read');
     await expect(page.locator('#detailPane')).toBeVisible();
     await page.evaluate(() => window.rinkuTheme.setPreference('dark'));
-    await expect(activeRow).toHaveCSS('background-color', 'rgb(34, 55, 69)');
-    await expect(page.locator('#detailPane')).toHaveCSS('background-color', 'rgb(29, 45, 58)');
+    await expect.poll(() => activeRow.evaluate((row) => getComputedStyle(row, '::before').backgroundColor)).toBe('rgb(44, 48, 53)');
+    await expect(page.locator('#detailPane')).toHaveCSS('background-color', 'rgb(36, 39, 43)');
     await page.screenshot({ path: test.info().outputPath('links-and-details-dark.png') });
     await expect(page.locator('#detailPane').getByRole('button', { name: /^(Open|Archive|Restore)$/ })).toHaveCount(0);
     expect(await electronApp.evaluate(() => globalThis.__rinkuOpenCount)).toBe(2);
@@ -647,6 +657,34 @@ test('quick add saves immediately and opens the capture review modal', async () 
       tags: ['queued'],
       body: 'Review notes from quick add.',
     });
+
+    const before = await listLinks(fixture.libraryRoot, { rebuild: true });
+    const saved = before.links.find((link) => link.url === 'https://quick.example.com/article');
+    await page.locator('#quickAddSubmit').click();
+    await page.locator('#quickAddUrl').fill(saved.url);
+    await page.locator('#quickAddSubmit').click();
+    await expect(page.locator('#captureReviewModal')).toBeVisible();
+    await expect(page.locator('#captureReviewNotice')).toHaveText('This link is already saved. You can edit it below.');
+    await expect(page.locator('#captureReviewTitle')).toHaveValue('Quick Add Review');
+    await expect(page.locator('#captureReviewBody')).toHaveValue('Review notes from quick add.');
+    await expect(page.locator('#captureReviewLabel').getByLabel('Watch')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#captureReviewTags')).toContainText('queued');
+    await page.locator('#captureReviewBody').fill('Edited the existing link.');
+    await page.locator('#captureReviewDone').click();
+    await expect.poll(async () => (await readCurrentLink(fixture.libraryRoot, saved.id)).body).toBe('Edited the existing link.');
+    expect((await listLinks(fixture.libraryRoot, { rebuild: true })).links.length).toBe(before.links.length);
+
+    await rowByTitle(page, 'Quick Add Review').getByLabel('Archive', { exact: true }).click();
+    await expect(rowByTitle(page, 'Quick Add Review')).toHaveCount(0);
+    await page.locator('#quickAddSubmit').click();
+    await page.locator('#quickAddUrl').fill(saved.url);
+    await page.locator('#quickAddSubmit').click();
+    await expect(page.locator('#captureReviewNotice')).toHaveText('This link is already in your archive. You can edit it below.');
+    await expect(page.locator('#captureReviewBody')).toHaveValue('Edited the existing link.');
+    await page.locator('#captureReviewDone').click();
+    await expect(page.locator('#captureReviewModal')).toBeHidden();
+    expect((await readCurrentLink(fixture.libraryRoot, saved.id)).status).toBe('archived');
+    expect((await listLinks(fixture.libraryRoot, { rebuild: true })).links.length).toBe(before.links.length);
   } finally {
     await cleanup([fixture.root, app && app.userDataDir], app && app.electronApp);
   }
@@ -680,6 +718,10 @@ test('large libraries virtualize rows and keep view changes responsive', async (
     await app.electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1180, 760));
 
     const initialRows = await page.locator('.linkRow').count();
+    await page.evaluate(() => window.rinkuTheme.setPreference('dark'));
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: test.info().outputPath('dark-list.png') });
     expect(initialRows).toBeGreaterThan(0);
     expect(initialRows).toBeLessThan(80);
     await expect(page.locator('.linksVirtualizer')).toHaveAttribute('data-total-rows', '10000');

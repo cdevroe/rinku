@@ -58,6 +58,12 @@ Connect an MCP client using `node /absolute/path/to/rinku/bin/rinku.js mcp serve
 
 Choose **Light**, **Dark**, or **Auto** in **Settings > Appearance**. Auto is the default and follows system appearance, including changes while Rinku is open. The setting is saved automatically on this device and applies across libraries.
 
+## Saving a link again
+
+Adding an existing URL reopens its saved information in the capture popup, with a notice that it is already saved. Its title, notes, labels, tags, and contexts are preserved until you edit them. Archived links stay archived and are identified in the notice. Quick Add, Safari capture, and popup capture all use this behavior.
+
+URL matching ignores surrounding whitespace, host casing, default ports, and an omitted root slash. Different paths, query parameters, and fragments remain distinct. Unmark import keeps its existing exact-URL matching and explicit duplicate-import option.
+
 ## Keyboard Controls
 
 Open **Help > Keyboard Shortcuts** for the categorized in-app reference. Use Command on macOS and Control on Windows/Linux:

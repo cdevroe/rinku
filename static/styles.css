@@ -32,22 +32,22 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --app-bg: #111b24;
+  --app-bg: #141618;
   --rail: #101d2b;
   --rail-deep: #0c1722;
   --side: #122738;
   --side-soft: #1b3447;
   --side-muted: #9ab2c3;
-  --surface: #182530;
-  --surface-soft: #1d2d3a;
-  --surface-tint: #203b4b;
-  --surface-selected: #223745;
-  --text: #e4edf4;
-  --muted: #a1b1bf;
-  --text-secondary: #b4c4d0;
-  --text-facets: #9abfd4;
-  --border: #3b4e5f;
-  --border-soft: #2c3d4b;
+  --surface: #1e2023;
+  --surface-soft: #24272b;
+  --surface-tint: #253640;
+  --surface-selected: #2c3035;
+  --text: #edece8;
+  --muted: #a2a6ac;
+  --text-secondary: #bec1c6;
+  --text-facets: #a3b5bd;
+  --border: #454a50;
+  --border-soft: #30343a;
   --accent: #71c8ed;
   --accent-strong: #43b4e2;
   --shadow: 0 18px 45px rgba(0, 0, 0, .35);
@@ -1049,6 +1049,86 @@ textarea {
 
 .iconButton:hover {
   color: var(--accent-strong);
+}
+
+/* Inset rows keep the dark list quiet while preserving the virtualizer's
+   fixed 98px stride. The background occupies 90px and leaves an 8px gutter. */
+:root[data-theme="dark"] .linksList:not(.settingsPageList) {
+  background: var(--app-bg);
+}
+
+:root[data-theme="dark"] .linkRow {
+  width: calc(100% - 32px);
+  margin: 0 16px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-theme="dark"] .linkRow::before {
+  position: absolute;
+  inset: 0 0 8px;
+  border: 1px solid #292c30;
+  border-radius: 10px;
+  background: var(--surface);
+  content: "";
+  pointer-events: none;
+  transition: background .14s ease, border-color .14s ease;
+}
+
+:root[data-theme="dark"] .linkRow:hover::before,
+:root[data-theme="dark"] .linkRow:focus-within::before {
+  border-color: #50555d;
+  background: var(--surface-soft);
+}
+
+:root[data-theme="dark"] .linkRow.active::before {
+  border-color: #61676f;
+  background: var(--surface-selected);
+}
+
+:root[data-theme="dark"] .linkRow::after {
+  top: 22px;
+  right: 24px;
+  width: 6px;
+  height: 6px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--label-color);
+  opacity: 1;
+}
+
+:root[data-theme="dark"] .linkRowMain {
+  position: relative;
+  height: calc(100% - 8px);
+  min-height: 0;
+  border-radius: 10px;
+  padding: 12px 70px 12px 64px;
+}
+
+:root[data-theme="dark"] .linkTitle {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+:root[data-theme="dark"] .linkMeta,
+:root[data-theme="dark"] .linkFacets {
+  margin-top: 6px;
+}
+
+:root[data-theme="dark"] .archiveToggle,
+:root[data-theme="dark"] .rowActions {
+  top: calc(50% - 4px);
+}
+
+:root[data-theme="dark"] .archiveToggle {
+  left: 14px;
+}
+
+:root[data-theme="dark"] .archiveCircle {
+  width: 20px;
+  height: 20px;
+  border-width: 1.5px;
 }
 
 .inverseIconButton {

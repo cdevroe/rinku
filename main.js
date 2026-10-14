@@ -496,6 +496,7 @@ if (process.argv.includes('--mcp-server')) {
       libraryRoot: currentLibraryRoot,
       link: result.link,
       review: true,
+      duplicate: result.duplicate,
       source: 'protocol',
     });
     focusMainWindow();

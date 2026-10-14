@@ -60,7 +60,7 @@ Successful responses use `{ "ok": true, "data": ... }`. Errors use `{ "ok": fals
 | POST | `/libraries` | Create a library; JSON requires `libraryRoot`. Returns 201. |
 | GET | `/settings` | Library settings. |
 | GET | `/links` | Filtered links, `total` before limit, and library totals. |
-| POST | `/links` | Create a link. Returns 201. |
+| POST | `/links` | Save a link. Returns 201 for a new link, or 200 for an existing URL. `data.duplicate` indicates whether the record already existed. |
 | GET | `/links/{ref}` | Full link including Markdown notes (`body`). |
 | PATCH | `/links/{ref}` | Update supplied fields. |
 | POST | `/links/{ref}/archive` | Archive the link. |
@@ -74,6 +74,8 @@ Library-scoped routes accept `libraryRoot` as a query parameter or use the serve
 `GET /links` accepts `status` (`active`, `archived`, or `all`), `label`, `tag`, `context`, `search`, `olderThanDays` (nonnegative number), and `limit` (positive integer). Without `status`, both active and archived links are returned. Search matches metadata, including titles, URLs, tags, and contexts.
 
 `POST /links` requires an HTTP or HTTPS `url`. Optional fields are `title`, `label`, `tags` (string array), `contexts` (string array), and `body`. Automation does not fetch page titles implicitly; when omitted, the title falls back to the URL. `PATCH /links/{ref}` accepts `title`, `label`, `tags`, `contexts`, and `body`; omitted fields are preserved. Empty arrays or an empty body clear those fields. Archive and restore requests accept an empty body or `{}`. There is no permanent-delete endpoint.
+
+Saving an existing URL returns its saved metadata without overwriting any fields or restoring archived links. Use `PATCH /links/{ref}` to make changes. URL matching follows the [same rules as desktop capture](../README.md#saving-a-link-again).
 
 Writes use the existing storage engine, including label rules and tag/context normalization. Reads scan current Markdown files rather than trusting cached index paths. Requests are serialized within each server process. Use one writer process per library when automating bulk changes; synchronization across independent app, CLI, API, and MCP processes is not provided.
 

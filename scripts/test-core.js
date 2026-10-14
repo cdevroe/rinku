@@ -49,6 +49,21 @@ async function run() {
     assert.deepStrictEqual(updated.contexts, ['@Home', '@Work']);
     assert(updated.filePath.includes(`${path.sep}links${path.sep}Read${path.sep}`));
 
+    const duplicate = await createLink(libraryRoot, {
+      url: `  ${updated.url}  `,
+      title: 'Do not replace my title',
+      label: 'Watch',
+      tags: ['replacement'],
+      body: 'Do not replace my notes',
+    }, { learnRule: true });
+    assert.strictEqual(duplicate.duplicate, true);
+    assert.strictEqual(duplicate.link.id, updated.id);
+    assert.strictEqual(duplicate.link.title, updated.title);
+    assert.strictEqual(duplicate.link.label, updated.label);
+    assert.deepStrictEqual(duplicate.link.tags, updated.tags);
+    assert.strictEqual(duplicate.link.body, updated.body);
+    assert.strictEqual(duplicate.link.updatedAt, updated.updatedAt);
+
     const nextSettings = await readSettings(libraryRoot);
     assert(nextSettings.smartLabels.rules.some((rule) => rule.domain === 'youtube.com' && rule.label === 'read'));
 
@@ -61,6 +76,12 @@ async function run() {
     const archived = await archiveLink(libraryRoot, updated.id);
     assert.strictEqual(archived.status, 'archived');
     assert(archived.filePath.includes(`${path.sep}archive${path.sep}Read${path.sep}`));
+
+    const archivedDuplicate = await createLink(libraryRoot, { url: archived.url, title: 'Captured again' });
+    assert.strictEqual(archivedDuplicate.duplicate, true);
+    assert.strictEqual(archivedDuplicate.link.id, archived.id);
+    assert.strictEqual(archivedDuplicate.link.status, 'archived');
+    assert.strictEqual(archivedDuplicate.link.archivedAt, archived.archivedAt);
 
     const activeRead = await listLinks(libraryRoot, { status: 'active', label: 'read' });
     assert.strictEqual(activeRead.links.length, 1);
@@ -110,7 +131,34 @@ async function run() {
   }
 }
 
-run().then(() => {
+async function testConcurrentDuplicates() {
+  const { root, libraryRoot } = await makeTempLibrary();
+  try {
+    const results = await Promise.all(Array.from({ length: 4 }, () => createLink(libraryRoot, {
+      url: 'https://example.com', title: 'Same link',
+    })));
+    assert.strictEqual(results.filter((result) => !result.duplicate).length, 1);
+    assert.strictEqual(new Set(results.map((result) => result.link.id)).size, 1);
+    const canonical = await createLink(libraryRoot, { url: 'https://EXAMPLE.com:443/', title: 'Same host' });
+    assert.strictEqual(canonical.duplicate, true);
+    assert.strictEqual((await listLinks(libraryRoot, { rebuild: true })).links.length, 1);
+
+    for (const suffix of ['Article', 'article', 'article?a=1', 'article?a=2', 'article#section']) {
+      const result = await createLink(libraryRoot, { url: `https://example.com/${suffix}`, title: suffix });
+      assert.strictEqual(result.duplicate, false, 'Distinct paths, queries, and fragments must remain distinct.');
+    }
+    const unindexed = await createLink(libraryRoot, {
+      url: 'https://example.com/unindexed', title: 'Unindexed',
+    }, { allowDuplicates: true, rebuildIndex: false });
+    const duplicate = await createLink(libraryRoot, { url: unindexed.link.url });
+    assert.strictEqual(duplicate.link.id, unindexed.link.id, 'Check Markdown files even when the index is stale.');
+    assert.strictEqual(duplicate.duplicate, true);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+}
+
+run().then(testConcurrentDuplicates).then(() => {
   console.log('test-core passed');
 }).catch((error) => {
   console.error(error);
