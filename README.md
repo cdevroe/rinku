@@ -15,14 +15,14 @@ This repository is an early working foundation. It includes:
 - App URL-scheme capture and an optional localhost popup/API capture endpoint.
 - Core tests for storage, import, CLI, MCP, API, and capture behavior.
 
-Use Node.js 18 or later for the CLI, API, and MCP server. Install dependencies before launching the desktop app:
+Use Node.js 22.12 or later and npm. The `.nvmrc` file pins the version used in CI. If you use nvm, run `nvm install` and `nvm use` first. Install the locked dependencies before launching the desktop app:
 
 ```sh
-npm install
+npm ci
 npm start
 ```
 
-Run the test suite without Electron dependencies:
+Run the storage, importer, CLI, MCP, API, and capture tests without launching Electron:
 
 ```sh
 npm test
@@ -34,11 +34,13 @@ Run the Electron UI coverage with Playwright:
 npm run test:playwright
 ```
 
-Run both suites:
+On macOS with Xcode Command Line Tools installed, run all tests (including Safari and signing checks):
 
 ```sh
 npm run test:all
 ```
+
+See [Contributing](CONTRIBUTING.md) for project structure, platform requirements, tests, and pull requests. Report vulnerabilities using [Security](SECURITY.md).
 
 ## API and MCP
 

@@ -1,0 +1,17 @@
+name: Feature request
+description: Suggest an improvement to Rinku.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would this help you do?
+      description: Describe the workflow or problem you want to improve.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Suggested behavior
+      description: Include alternatives you have considered, if any.
+    validations:
+      required: true

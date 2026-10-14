@@ -76,5 +76,8 @@
     "ajv": "^8.20.0",
     "electron-updater": "^6.8.9",
     "js-yaml": "^5.1.0"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

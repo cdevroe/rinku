@@ -1,0 +1,33 @@
+name: Bug report
+description: Report something that does not work as expected.
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Rinku version
+      description: Include the version or commit if running from source.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system and version
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Use synthetic links and omit personal library contents or credentials.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Screenshots or additional context

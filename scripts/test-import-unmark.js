@@ -6,7 +6,7 @@ const path = require('path');
 const { createLibrary, listLinks, readLink } = require('../lib/library');
 const { importUnmarkExport } = require('../lib/importers');
 
-const REAL_EXPORT_PATH = '/Users/cdevroe/Downloads/export-3.json';
+const REAL_EXPORT_PATH = process.env.RINKU_TEST_UNMARK_EXPORT;
 
 async function makeFixture(filePath) {
   const fixture = {
@@ -100,28 +100,23 @@ async function runSyntheticImport() {
 }
 
 async function runRealExportSmoke() {
-  try {
-    await fs.access(REAL_EXPORT_PATH);
-  } catch {
-    console.log('test-import-unmark real export skipped');
-    return;
-  }
+  if (!REAL_EXPORT_PATH) return;
+  await fs.access(REAL_EXPORT_PATH);
 
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'rinku-real-import-'));
   const libraryRoot = path.join(root, 'Library');
   try {
     await createLibrary(libraryRoot);
     const result = await importUnmarkExport(libraryRoot, REAL_EXPORT_PATH);
-    assert.strictEqual(result.total, 3735);
-    assert.strictEqual(result.added, 3735);
-    assert.strictEqual(result.skipped, 0);
-    assert.strictEqual(result.archived, 1392);
+    assert.strictEqual(result.failed, 0, JSON.stringify(result.errors));
+    assert.strictEqual(result.added + result.skipped, result.total);
+    assert.strictEqual(result.active + result.archived, result.added);
 
     const all = await listLinks(libraryRoot, { rebuild: true });
-    assert.strictEqual(all.links.length, 3735);
-    const labels = new Set(all.links.map((link) => link.label));
-    assert(labels.has('read'));
-    assert(labels.has('unlabeled'));
+    assert.strictEqual(all.links.length, result.added);
+    const repeated = await importUnmarkExport(libraryRoot, REAL_EXPORT_PATH);
+    assert.strictEqual(repeated.added, 0, 'Importing the same export again must not add links.');
+    assert.strictEqual(repeated.failed, 0, JSON.stringify(repeated.errors));
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
