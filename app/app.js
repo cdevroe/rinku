@@ -573,7 +573,7 @@ function renderTagFilters(container) {
   const choices = filterDisclosure(container, 'tags', { label: 'Tags', heading: true });
   for (const [tag, count] of tags) {
     choices.appendChild(filterRow({
-      label: `#${tag}`,
+      label: tag,
       count,
       active: state.filters.tag === tag,
       iconName: 'hash',
@@ -1584,10 +1584,9 @@ function linkRow(link) {
   main.type = 'button';
   main.className = 'linkRowMain';
   main.tabIndex = link.id === state.focusedLinkId ? 0 : -1;
-  main.setAttribute('aria-label', `${link.title}. ${link.domain}. Show link information`);
-  main.setAttribute('aria-expanded', String(link.id === state.selectedId));
-  main.setAttribute('aria-controls', 'detailPane');
-  main.addEventListener('click', () => selectLink(link.id).catch(showError));
+  main.setAttribute('aria-label', `${link.title}. ${link.domain}. Open in browser`);
+  main.setAttribute('aria-keyshortcuts', 'Enter O');
+  main.addEventListener('click', () => window.rinku.openExternal(link.url).catch(showError));
 
   const text = document.createElement('span');
   text.className = 'linkText';
@@ -1618,31 +1617,41 @@ function linkRow(link) {
 
   const archiveButton = document.createElement('button');
   archiveButton.type = 'button';
-  archiveButton.className = 'iconButton';
+  archiveButton.className = 'archiveToggle';
+  archiveButton.tabIndex = main.tabIndex;
   archiveButton.title = link.status === 'archived' ? 'Restore' : 'Archive';
   archiveButton.setAttribute('aria-label', archiveButton.title);
-  archiveButton.appendChild(icon(link.status === 'archived' ? 'rotateCcw' : 'archive'));
-  archiveButton.addEventListener('click', () => toggleArchiveLink(link).catch(showError));
+  archiveButton.setAttribute('aria-pressed', String(link.status === 'archived'));
+  const archiveCircle = document.createElement('span');
+  archiveCircle.className = 'archiveCircle';
+  archiveCircle.appendChild(icon('check'));
+  archiveButton.appendChild(archiveCircle);
+  archiveButton.addEventListener('click', async () => {
+    archiveButton.disabled = true;
+    archiveButton.setAttribute('aria-pressed', String(link.status !== 'archived'));
+    try {
+      await toggleArchiveLink(link);
+    } catch (error) {
+      archiveButton.setAttribute('aria-pressed', String(link.status === 'archived'));
+      showError(error);
+    } finally {
+      archiveButton.disabled = false;
+    }
+  });
 
   const infoButton = document.createElement('button');
   infoButton.type = 'button';
   infoButton.className = 'iconButton';
   infoButton.title = 'Info';
   infoButton.setAttribute('aria-label', 'Info');
+  infoButton.setAttribute('aria-expanded', String(link.id === state.selectedId));
+  infoButton.setAttribute('aria-controls', 'detailPane');
   infoButton.appendChild(icon('info'));
   infoButton.addEventListener('click', () => selectLink(link.id).catch(showError));
 
-  const openButton = document.createElement('button');
-  openButton.type = 'button';
-  openButton.className = 'iconButton';
-  openButton.title = 'Open';
-  openButton.setAttribute('aria-label', 'Open');
-  openButton.appendChild(icon('externalLink'));
-  openButton.addEventListener('click', () => window.rinku.openExternal(link.url).catch(showError));
-
-  actions.append(archiveButton, infoButton, openButton);
+  actions.append(infoButton);
   for (const button of actions.children) button.tabIndex = main.tabIndex;
-  row.append(main, actions);
+  row.append(main, archiveButton, actions);
   return row;
 }
 
@@ -1843,15 +1852,11 @@ async function selectLink(id) {
   els.detailDomain.textContent = link.domain;
   els.detailTitle.textContent = link.title;
   els.detailUrl.textContent = link.url;
-  els.detailOpen.onclick = () => window.rinku.openExternal(link.url).catch(showError);
   renderLabelChooser(link.label);
   renderContextSelections(link.contexts || []);
   renderTagEditor(link.tags || []);
   els.detailBody.value = link.body || '';
   setDetailSaveState('');
-  els.archiveDetail.textContent = link.status === 'archived' ? 'Restore' : 'Archive';
-  els.archiveDetail.replaceChildren(icon(link.status === 'archived' ? 'rotateCcw' : 'archive'), document.createTextNode(link.status === 'archived' ? 'Restore' : 'Archive'));
-  els.archiveDetail.onclick = () => toggleArchiveLink(link).catch(showError);
   els.detailClose.focus();
 }
 
@@ -2164,9 +2169,10 @@ function handleKeyboardNavigation(event) {
       focusLinkIndex(indices[event.key]);
     } else {
       const command = { i: 'link-info', o: 'open-link', e: 'archive-link' }[event.key.toLowerCase()];
-      if (command || (target === els.linksList && event.key === 'Enter')) {
+      const openWithEnter = event.key === 'Enter' && (target === els.linksList || target.classList.contains('linkRowMain'));
+      if (command || openWithEnter) {
         event.preventDefault();
-        if (!event.repeat) runKeyboardCommand(command || 'link-info').catch(showError);
+        if (!event.repeat) runKeyboardCommand(command || 'open-link').catch(showError);
       }
     }
   } else if (els.sidebarContent.contains(target)) {
@@ -2198,7 +2204,7 @@ function shortcutText(accelerator) {
 
 function initShortcutHints() {
   const targets = { 'add-link': els.quickAddSubmit, search: els.search, 'focus-list': els.linksList,
-    settings: els.settingsButton, 'link-info': els.detailPane, 'open-link': els.detailOpen, 'archive-link': els.archiveDetail };
+    settings: els.settingsButton, 'link-info': els.detailPane };
   for (const command of window.rinkuKeyboardCommands) {
     const element = targets[command.id];
     if (!element) continue;
@@ -2211,7 +2217,7 @@ function showKeyboardShortcuts() {
   if (els.shortcutsDialog.open) return;
   const commandRows = (ids) => ids.map((id) => {
     const command = window.rinkuKeyboardCommands.find((candidate) => candidate.id === id);
-    return [command.label, shortcutText(command.accelerator)];
+    return [command.label, shortcutText(command.accelerator || command.shortcut)];
   });
   const categories = [
     ['Navigation', [
@@ -2223,8 +2229,8 @@ function showKeyboardShortcuts() {
     ]],
     ['Link actions', [
       ...commandRows(['link-info', 'open-link', 'archive-link']),
-      ['Information (in list)', 'Enter / I'],
-      ['Open (in list)', 'O'],
+      ['Information (in list)', 'I'],
+      ['Open (in list)', 'Enter / O'],
       ['Archive / restore (in list)', 'E'],
     ]],
     ['Filters and views', commandRows(['all-links', 'switch-status', 'labels', 'contexts', 'tags'])],
@@ -2291,13 +2297,10 @@ function initIcons() {
   els.searchIcon.replaceChildren(icon('search'));
   setIconOnly(els.detailClose, 'x');
   setIconOnly(els.captureReviewDone, 'check');
-  setButtonIcon(els.detailOpen, 'externalLink');
-  setButtonIcon(els.archiveDetail, 'archive');
 }
 
 function cacheElements() {
   [
-    'archiveDetail',
     'allLinksButton',
     'captureReviewBody',
     'captureReviewContexts',
@@ -2314,7 +2317,6 @@ function cacheElements() {
     'detailContexts',
     'detailDomain',
     'detailLabel',
-    'detailOpen',
     'detailPane',
     'detailSaveState',
     'detailTags',

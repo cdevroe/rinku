@@ -109,6 +109,7 @@ if (process.argv.includes('--mcp-server')) {
       const command = require('./lib/keyboardCommands').find((candidate) => {
         const item = menu?.getMenuItemById(candidate.id);
         const accelerator = item?.userAccelerator || item?.accelerator || candidate.accelerator;
+        if (!accelerator) return false;
         const parts = accelerator.split('+');
         const key = parts.pop().toLowerCase();
         const isMac = process.platform === 'darwin';

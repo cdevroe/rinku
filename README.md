@@ -65,12 +65,12 @@ Open **Help > Keyboard Shortcuts** for the categorized in-app reference. Use Com
 | Cmd/Ctrl + Shift + A | Switch between active links and archive |
 | Cmd/Ctrl + Shift + L / C / T | Focus label, context, or tag filters |
 | Cmd/Ctrl + I | Open the focused link's information panel |
-| Cmd/Ctrl + Enter | Open the focused link in the browser |
+| Enter (in the link list) | Open the focused link in the browser |
 | Cmd/Ctrl + Shift + E | Archive or restore the focused link |
 | Cmd/Ctrl + , | Library settings |
 | Cmd/Ctrl + / | Keyboard shortcut reference |
 
-In the link list, Up/Down, Home/End, and Page Up/Page Down move focus through the entire library. Enter or I shows information, O opens the link, and E archives or restores it. These single-letter shortcuts only apply while the list has focus, so typing in an editor remains normal.
+Click a link row to open it in your browser, the circle on its left to archive or restore it, or its info button to edit its details. In the link list, Up/Down, Home/End, and Page Up/Page Down move focus through the entire library. Enter or O opens the link, I shows information, and E archives or restores it. These shortcuts only apply while the list has focus, so typing in an editor remains normal.
 
 Sidebar controls support arrow keys and Enter/Space. Right expands a switcher; Left or Escape collapses it. F6 and Shift+F6 move between the sidebar, link list, information panel, and search. From search, Down moves into the results; Escape clears the search and returns to the list.
 

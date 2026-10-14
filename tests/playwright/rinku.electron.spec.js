@@ -382,7 +382,8 @@ test('combines status, label, context, tag, and search filters', async () => {
     await expect(page.locator('#listCount')).toHaveText('3');
 
     await openSidebarChoices(page, 'tags');
-    await filterButton(page, '#science').click();
+    await expect(filterButton(page, 'science').locator('.filterMain > span')).toHaveText('science');
+    await filterButton(page, 'science').click();
     await expect(page.locator('#listCount')).toHaveText('2');
     await expectVisibleRows(page, ['Science Home Read', 'Old Home Science'], ['Cooking Home Read', 'Science Work Watch']);
 
@@ -418,7 +419,7 @@ test('autosaves detail edits for labels, contexts, tags, and notes', async () =>
     const { page } = app;
     const row = rowByTitle(page, 'Science Home Read');
 
-    await row.locator('.linkRowMain').click();
+    await row.getByLabel('Info', { exact: true }).click();
     await expect(page.locator('#detailPane')).not.toHaveClass(/hidden/);
     await expect(page.locator('#detailTitle')).toHaveText('Science Home Read');
 
@@ -449,7 +450,7 @@ test('autosaves detail edits for labels, contexts, tags, and notes', async () =>
   }
 });
 
-test('row actions open, archive, and restore links', async () => {
+test('rows open URLs while circle and info controls act independently', async () => {
   const fixture = await seedLibrary();
   let app;
   try {
@@ -458,17 +459,40 @@ test('row actions open, archive, and restore links', async () => {
 
     await electronApp.evaluate(({ shell }) => {
       globalThis.__rinkuOpenedExternal = '';
+      globalThis.__rinkuOpenCount = 0;
       shell.openExternal = async (target) => {
+        globalThis.__rinkuOpenCount += 1;
         globalThis.__rinkuOpenedExternal = target;
         return true;
       };
     });
 
     const activeRow = rowByTitle(page, 'Cooking Home Read');
-    await activeRow.hover();
-    await activeRow.getByLabel('Open').click();
+    const archiveToggle = activeRow.getByLabel('Archive', { exact: true });
+    await page.mouse.move(0, 0);
+    await expect(archiveToggle).toBeVisible();
+    await expect(archiveToggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(archiveToggle.locator('.icon')).toHaveCSS('opacity', '0');
+    await archiveToggle.hover();
+    await expect(archiveToggle.locator('.icon')).toHaveCSS('opacity', '1');
+    await page.screenshot({ path: test.info().outputPath('archive-circle-hover.png') });
+    await expect(activeRow.getByLabel('Open', { exact: true })).toHaveCount(0);
+    // Blank space, including the label corner, opens the same URL as the title.
+    const bounds = await activeRow.boundingBox();
+    await activeRow.click({ position: { x: bounds.width - 5, y: 5 } });
+    await expect.poll(() => electronApp.evaluate(() => globalThis.__rinkuOpenCount)).toBe(1);
+    await activeRow.locator('.linkRowMain').click();
     await expect.poll(() => electronApp.evaluate(() => globalThis.__rinkuOpenedExternal))
       .toBe('https://recipes.example.com/soup');
+    await expect.poll(() => electronApp.evaluate(() => globalThis.__rinkuOpenCount)).toBe(2);
+    await expect(page.locator('#detailPane')).toBeHidden();
+
+    await activeRow.getByLabel('Info', { exact: true }).click();
+    await expect(page.locator('#detailTitle')).toHaveText('Cooking Home Read');
+    await expect(page.locator('#detailPane')).toBeVisible();
+    await expect(page.locator('#detailPane').getByRole('button', { name: /^(Open|Archive|Restore)$/ })).toHaveCount(0);
+    expect(await electronApp.evaluate(() => globalThis.__rinkuOpenCount)).toBe(2);
+    await page.locator('#detailClose').click();
 
     await activeRow.hover();
     await activeRow.getByLabel('Archive').click();
@@ -477,17 +501,23 @@ test('row actions open, archive, and restore links', async () => {
       return link && link.status;
     }).toBe('archived');
     await expect(rowByTitle(page, 'Cooking Home Read')).toHaveCount(0);
+    expect(await electronApp.evaluate(() => globalThis.__rinkuOpenCount)).toBe(2);
 
     await openSidebarChoices(page, 'links');
     await filterButton(page, 'Archive').click();
     const archivedRow = rowByTitle(page, 'Cooking Home Read');
     await expect(archivedRow).toBeVisible();
-    await archivedRow.hover();
-    await archivedRow.getByLabel('Restore').click();
+    await page.mouse.move(0, 0);
+    const restoreToggle = archivedRow.getByLabel('Restore', { exact: true });
+    await expect(restoreToggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(restoreToggle.locator('.icon')).toHaveCSS('opacity', '1');
+    await restoreToggle.focus();
+    await page.keyboard.press('Enter');
     await expect.poll(async () => {
       const link = await readCurrentLink(fixture.libraryRoot, fixture.links.cookingHome.id);
       return link && link.status;
     }).toBe('active');
+    expect(await electronApp.evaluate(() => globalThis.__rinkuOpenCount)).toBe(2);
   } finally {
     await cleanup([fixture.root, app && app.userDataDir], app && app.electronApp);
   }
@@ -597,7 +627,7 @@ test('large libraries virtualize rows and keep view changes responsive', async (
     await page.screenshot({ path: test.info().outputPath('sidebar-collapsed.png') });
     await openSidebarChoices(page, 'tags');
     await expect(page.locator('[data-disclosure="tags"] .filterRow')).toHaveCount(10);
-    await expect(page.locator('[data-disclosure="tags"] .filterRow').first()).toContainText('#even');
+    await expect(page.locator('[data-disclosure="tags"] .filterRow').first()).toContainText('even');
     await openSidebarChoices(page, 'links');
     await page.locator('#quickAddSubmit').click();
     await app.electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(920, 620));
@@ -667,6 +697,9 @@ test('keyboard shortcuts navigate, filter, edit, and open links', async () => {
     await page.keyboard.press('ArrowDown');
     await expect(rowByTitle(page, 'Science Home Read').locator('.linkRowMain')).toBeFocused();
     await page.keyboard.press('Enter');
+    await expect.poll(() => electronApp.evaluate(() => globalThis.__rinkuOpenedExternal)).toBe(fixture.links.scienceHome.url);
+    await expect(page.locator('#detailPane')).toBeHidden();
+    await page.keyboard.press('i');
     await expect(page.locator('#detailClose')).toBeFocused();
     await page.locator('#detailBody').fill('Saved when closing with Escape.');
     await page.keyboard.press('Escape');
@@ -694,7 +727,7 @@ test('keyboard shortcuts navigate, filter, edit, and open links', async () => {
     await expect(page.locator('#listTitle')).toHaveText('@Work');
     await pressShortcut(app.electronApp, '1');
     await pressShortcut(app.electronApp, 'T', true);
-    await expect(filterButton(page, '#science')).toBeFocused();
+    await expect(filterButton(page, 'science')).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page.locator('#listCount')).toHaveText('3');
     await pressShortcut(app.electronApp, '1');
@@ -706,8 +739,10 @@ test('keyboard shortcuts navigate, filter, edit, and open links', async () => {
     await expect(page.locator('#listCount')).toHaveText('5');
     await pressShortcut(app.electronApp, 'I');
     await expect(page.locator('#detailClose')).toBeFocused();
-    await pressShortcut(app.electronApp, 'ENTER');
-    await expect.poll(() => electronApp.evaluate(() => globalThis.__rinkuOpenedExternal)).toBe(fixture.links.scienceHome.url);
+    await page.locator('#detailBody').fill('Line one');
+    await page.locator('#detailBody').press('Enter');
+    await page.keyboard.type('Line two');
+    await expect(page.locator('#detailBody')).toHaveValue('Line one\nLine two');
     await pressShortcut(app.electronApp, 'F');
     await page.keyboard.type('oie');
     await expect(page.locator('#search')).toHaveValue('oie');
@@ -740,7 +775,7 @@ test('tag delimiters retain focus and modal keyboard focus stays contained', asy
   try {
     app = await launchRinku({ libraryRoot: fixture.libraryRoot });
     const { page } = app;
-    await rowByTitle(page, 'Science Home Read').locator('.linkRowMain').click();
+    await rowByTitle(page, 'Science Home Read').getByLabel('Info', { exact: true }).click();
     const detailInput = page.locator('#detailTags').getByLabel('Add tag');
     await detailInput.focus();
     await page.keyboard.type('first,second,third');

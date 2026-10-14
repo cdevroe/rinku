@@ -812,6 +812,7 @@ textarea {
   border-left: 18px solid transparent;
   content: "";
   opacity: .82;
+  pointer-events: none;
 }
 
 .linkRow.active {
@@ -827,7 +828,8 @@ textarea {
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding: 18px 82px 16px 30px;
+  padding: 18px 82px 16px 72px;
+  cursor: pointer;
   text-align: left;
 }
 
@@ -841,6 +843,76 @@ textarea {
 
 .linkRowMain:focus-visible {
   outline-offset: -3px;
+}
+
+.archiveToggle {
+  position: absolute;
+  top: 50%;
+  left: 22px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #9aaab6;
+  padding: 0;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.archiveCircle {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  transition: background .14s ease, color .14s ease, transform .14s ease;
+}
+
+.archiveCircle .icon {
+  width: 15px;
+  height: 15px;
+  opacity: 0;
+  transition: opacity .14s ease;
+}
+
+.archiveToggle:hover,
+.archiveToggle:focus-visible {
+  color: var(--accent-strong);
+}
+
+.archiveToggle:hover .icon,
+.archiveToggle:focus-visible .icon,
+.archiveToggle[aria-pressed="true"] .icon {
+  opacity: 1;
+}
+
+.archiveToggle[aria-pressed="true"] .archiveCircle {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: #ffffff;
+}
+
+.archiveToggle[aria-pressed="true"]:not(:disabled):hover .archiveCircle,
+.archiveToggle[aria-pressed="true"]:not(:disabled):focus-visible .archiveCircle {
+  background: transparent;
+  color: var(--accent-strong);
+}
+
+.archiveToggle[aria-pressed="true"]:not(:disabled):hover .icon,
+.archiveToggle[aria-pressed="true"]:not(:disabled):focus-visible .icon {
+  opacity: 0;
+}
+
+.archiveToggle:active .archiveCircle {
+  transform: scale(.88);
+}
+
+.archiveToggle:disabled {
+  opacity: 1;
 }
 
 .linkText {
@@ -963,16 +1035,6 @@ textarea {
   color: #748897;
   font-size: 12px;
   line-height: 1.45;
-}
-
-.detailActions {
-  display: flex;
-  gap: 8px;
-}
-
-.detailActionsTop {
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--border);
 }
 
 .detailMeta {
