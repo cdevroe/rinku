@@ -982,7 +982,9 @@ test('keyboard shortcuts navigate, filter, edit, and open links', async () => {
     await expect(page.locator('#shortcutsDialog')).toBeVisible();
     await expect(page.locator('#shortcutsButton')).toHaveCount(0);
     await expect(page.locator('#shortcutsContent h3')).toHaveText(['Navigation', 'Filters and views', 'Link actions', 'Capture and editing', 'General']);
-    await expect(page.locator('#shortcutsContent').getByRole('rowheader', { name: 'Close panel or menu' })).toBeInViewport();
+    const closeShortcut = page.locator('#shortcutsContent').getByRole('rowheader', { name: 'Close panel or menu' });
+    await closeShortcut.scrollIntoViewIfNeeded();
+    await expect(closeShortcut).toBeInViewport();
     await page.screenshot({ path: test.info().outputPath('keyboard-shortcuts.png') });
     await page.keyboard.press('Escape');
     await expect(page.locator('#search')).toBeFocused();

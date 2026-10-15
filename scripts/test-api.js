@@ -161,7 +161,8 @@ async function run() {
     await assert.rejects(() => defaults.start({ port: -1 }), /port/);
     await assert.rejects(() => createApiServer({ env: {} }).start({ port: 0 }), /ALLOWED_ROOTS/);
 
-    // Start the public CLI entry point and verify clean signal shutdown.
+    // Verify the public CLI entry point. Windows forcibly terminates a child
+    // sent SIGTERM; POSIX delivers the signal to our graceful shutdown handler.
     const child = spawn(process.execPath, [path.resolve(__dirname, '../bin/rinku.js'), 'api', 'serve', '--library', libraryRoot, '--port', '0'], {
       env: { ...process.env, RINKU_API_TOKEN: 'cli-test-token', RINKU_API_READ_ONLY: 'true' }, stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -181,7 +182,9 @@ async function run() {
       const response = await fetch(`${cliUrl}/config`, { headers: { Authorization: 'Bearer cli-test-token' } });
       assert.strictEqual((await response.json()).data.readOnly, true);
       child.kill('SIGTERM');
-      assert.deepStrictEqual(await exited, { code: 0, signal: null });
+      assert.deepStrictEqual(await exited, process.platform === 'win32'
+        ? { code: null, signal: 'SIGTERM' }
+        : { code: 0, signal: null });
     } finally {
       clearTimeout(timeout);
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
