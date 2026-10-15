@@ -1,6 +1,6 @@
 # Rinku
 
-Rinku is a local-first Electron/plain JavaScript app for saving, organizing, and revisiting links. It is designed around user-owned libraries on disk rather than a hosted account or remote database.
+Rinku is a local-first desktop app that stores links as Markdown files in lists as directories.
 
 ## Current Status
 
