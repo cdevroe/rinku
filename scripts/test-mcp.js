@@ -2,6 +2,7 @@ const assert = require('assert');
 const fs = require('fs').promises;
 const os = require('os');
 const path = require('path');
+const http = require('http');
 const { callTool } = require('../lib/mcpServer');
 const { createMcpClientConfig } = require('../lib/mcpClientConfig');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
@@ -93,6 +94,17 @@ async function runTransport() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'rinku-mcp-stdio-'));
   const libraryRoot = path.join(root, 'Library');
   const clients = [];
+  let pageRequests = 0;
+  const contentServer = http.createServer((_request, response) => {
+    pageRequests += 1;
+    response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    response.end('<title>Fetched through MCP &amp; API</title>');
+  });
+  await new Promise((resolve, reject) => {
+    contentServer.once('error', reject);
+    contentServer.listen(0, '127.0.0.1', resolve);
+  });
+  const pageUrl = `http://127.0.0.1:${contentServer.address().port}`;
   async function connect(args, readOnly) {
     const transport = new StdioClientTransport({
       command: process.execPath, args, stderr: 'pipe',
@@ -135,8 +147,27 @@ async function runTransport() {
     assert.match(result.content[0].text, /read-only/);
     assert.strictEqual(parseToolResult(await readonly.callTool({ name: 'rinku_list_links', arguments: { libraryRoot } })).total, 1);
     await readonly.ping();
+
+    const noFetch = parseToolResult(await call('rinku_create_link', { libraryRoot, url: `${pageUrl}/no-fetch` }));
+    assert.strictEqual(noFetch.title, `${pageUrl}/no-fetch`);
+    assert.strictEqual(pageRequests, 0, 'Automated saves must explicitly opt into fetching.');
+    const fetched = parseToolResult(await call('rinku_create_link', { libraryRoot, url: `${pageUrl}/fetch`, fetchTitle: true }));
+    assert.strictEqual(fetched.title, 'Fetched through MCP & API');
+    assert.strictEqual(pageRequests, 1);
+    const duplicate = parseToolResult(await call('rinku_create_link', { libraryRoot, url: `${pageUrl}/fetch`, fetchTitle: true }));
+    assert.strictEqual(duplicate.duplicate, true);
+    assert.strictEqual(pageRequests, 1, 'Duplicates must preserve their title without refetching.');
+    const explicit = parseToolResult(await call('rinku_create_link', { libraryRoot, url: `${pageUrl}/explicit`, title: 'My title', fetchTitle: true }));
+    assert.strictEqual(explicit.title, 'My title');
+    assert.strictEqual(pageRequests, 1);
+    assert.strictEqual((await call('rinku_create_link', { libraryRoot, url: `${pageUrl}/invalid`, fetchTitle: 'yes' })).isError, true);
+    const deniedFetch = await readonly.callTool({ name: 'rinku_create_link', arguments: { libraryRoot, url: `${pageUrl}/blocked`, fetchTitle: true } });
+    assert.strictEqual(deniedFetch.isError, true);
+    assert.strictEqual(pageRequests, 1, 'Read-only saves must not make a network request.');
   } finally {
     for (const client of clients) await client.close();
+    contentServer.closeAllConnections();
+    await new Promise(resolve => contentServer.close(resolve));
     await fs.rm(root, { recursive: true, force: true });
   }
 }

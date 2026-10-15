@@ -27,7 +27,18 @@ async function run() {
   const config = { readOnly: false, allowedRoots: [root] };
   const api = createApiServer({ config, token: 'test-token', libraryRoot });
   const readOnly = createApiServer({ config: { ...config, readOnly: true }, token: 'test-token', libraryRoot });
+  let pageRequests = 0;
+  const titleServer = http.createServer((_request, response) => {
+    pageRequests += 1;
+    response.writeHead(200, { 'Content-Type': 'text/html' });
+    response.end('<title>Fetched through HTTP API</title>');
+  });
   try {
+    await new Promise((resolve, reject) => {
+      titleServer.once('error', reject);
+      titleServer.listen(0, '127.0.0.1', resolve);
+    });
+    const pageUrl = `http://127.0.0.1:${titleServer.address().port}`;
     const { baseUrl } = await api.start({ port: 0 });
     async function request(route, { method = 'GET', body, headers = {}, status = 200 } = {}) {
       const response = await fetch(`${baseUrl}${route}`, {
@@ -49,6 +60,7 @@ async function run() {
     const spec = await request('/openapi.json');
     assert.strictEqual(spec.openapi, '3.1.0');
     assert(spec.paths['/api/v1/links/{ref}/restore']);
+    assert.strictEqual(spec.paths['/api/v1/links'].post.requestBody.content['application/json'].schema.properties.fetchTitle.type, 'boolean');
     const created = (await request('/links', { method: 'POST', body: {
       url: 'https://example.com/api', title: 'API Link', label: 'Read', tags: ['JavaScript'], contexts: ['Work'], body: 'Original notes',
     }, status: 201 })).data;
@@ -122,6 +134,14 @@ async function run() {
     await Promise.all(Array.from({ length: 8 }, (_, n) => request('/links', { method: 'POST', body: { url: `https://example.com/${n}`, title: `Link ${n}` }, status: 201 })));
     assert.strictEqual((await request('/links')).data.total, 10);
 
+    const fetched = (await request('/links', { method: 'POST', body: { url: `${pageUrl}/fetch`, fetchTitle: true }, status: 201 })).data;
+    assert.strictEqual(fetched.title, 'Fetched through HTTP API');
+    const noFetch = (await request('/links', { method: 'POST', body: { url: `${pageUrl}/no-fetch` }, status: 201 })).data;
+    assert.strictEqual(noFetch.title, `${pageUrl}/no-fetch`);
+    assert.strictEqual(pageRequests, 1);
+    await request('/links', { method: 'POST', body: { url: `${pageUrl}/invalid`, fetchTitle: 'true' }, status: 400 });
+    assert.strictEqual(pageRequests, 1);
+
     await fs.unlink(indexPath);
     const before = await snapshot(libraryRoot);
     const readonlyStatus = await readOnly.start({ port: 0 });
@@ -176,6 +196,8 @@ async function run() {
       }).on('error', reject);
     });
   } finally {
+    titleServer.closeAllConnections();
+    await new Promise(resolve => titleServer.close(resolve));
     await readOnly.stop();
     await api.stop();
     await fs.rm(root, { recursive: true, force: true });

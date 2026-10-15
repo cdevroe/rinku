@@ -51,6 +51,7 @@ if (process.argv.includes('--mcp-server')) {
   } = require('./lib/captureServer');
   const { importUnmarkExport } = require('./lib/importers');
   const { createMcpClientConfig } = require('./lib/mcpClientConfig');
+  const { watchLibrary } = require('./lib/libraryWatcher');
   const safariExtension = require('./lib/safariExtension').createSafariExtension({
     isPackaged: app.isPackaged,
     resourcesPath: process.resourcesPath,
@@ -64,6 +65,7 @@ if (process.argv.includes('--mcp-server')) {
   const UPDATE_PREFS_FILE = 'update-preferences.json';
   let mainWindow = null;
   let currentLibraryRoot = '';
+  let stopLibraryWatcher = null;
   const pendingProtocolCaptures = [];
   const updateState = {
     activeCheckIsManual: false,
@@ -567,7 +569,17 @@ if (process.argv.includes('--mcp-server')) {
   }));
   ipcMain.handle('rinku:update-settings', async (_event, libraryRoot, patch) => updateSettings(libraryRoot, patch || {}));
   ipcMain.handle('rinku:set-current-library', async (_event, libraryRoot) => {
+    stopLibraryWatcher?.();
+    stopLibraryWatcher = null;
     currentLibraryRoot = String(libraryRoot || '');
+    if (currentLibraryRoot) {
+      stopLibraryWatcher = watchLibrary(currentLibraryRoot, (payload) => {
+        const window = getMainWindow();
+        if (payload.libraryRoot === currentLibraryRoot && window) {
+          window.webContents.send('rinku:library-changed', payload);
+        }
+      });
+    }
     await flushPendingProtocolCaptures();
     return { ok: true, libraryRoot: currentLibraryRoot };
   });
@@ -747,6 +759,7 @@ if (process.argv.includes('--mcp-server')) {
   });
 
   app.on('before-quit', () => {
+    stopLibraryWatcher?.();
     if (updateState.checkIntervalId) {
       clearInterval(updateState.checkIntervalId);
       updateState.checkIntervalId = null;

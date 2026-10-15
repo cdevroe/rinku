@@ -38,7 +38,7 @@ Adding an existing URL returns its saved record without overwriting metadata or 
 
 1. Open your library in Rinku, then go to **Settings → MCP**.
 2. Leave access read-only, or check **Allow agents to save, edit, and archive links**.
-3. Click **Copy configuration** and add it to your agent's local MCP server configuration. If the client already has an `mcpServers` object, merge the `rinku` entry into it.
+3. Click **Copy configuration** and add it to your agent's local MCP server configuration. If the client already has an `mcpServers` object, merge the `rinku` entry into it. For ChatGPT desktop / Codex, use the TOML instructions below.
 4. Restart or reconnect the agent. Ask it to list your Rinku libraries or search your saved links.
 
 The configuration includes the current library and app paths. It starts the MCP server with the app's bundled runtime: users do not need a source checkout, npm, or a separate Node.js installation. The desktop window can stay closed. Clients that use a different configuration format should copy the `command`, `args`, and `env` fields into their local stdio server settings.
@@ -46,6 +46,35 @@ The configuration includes the current library and app paths. It starts the MCP 
 The access checkbox only changes the generated configuration; it does not change existing agent connections. Replace their configuration and reconnect to change access. Copy again after moving the app or library, or when connecting a different library. Install Rinku in its permanent location first (for example, Applications on macOS rather than running from the DMG).
 
 The installed configuration uses Electron's [Node mode](https://www.electronjs.org/docs/latest/api/environment-variables#electron_run_as_node) so the server can use stdio without launching the UI. Linux AppImages use the persistent AppImage filename and resolve the bundled server from the new mount's `APPDIR` at launch; temporary mount paths are not saved in the configuration. Keep the `runAsNode` Electron fuse enabled when packaging Rinku.
+
+### ChatGPT desktop / Codex on macOS
+
+Local desktop agent connections, Codex CLI, and the Codex IDE extension share MCP settings for the same Codex host. The default user configuration file is `~/.codex/config.toml`. See the [official OpenAI MCP documentation](https://developers.openai.com/codex/mcp/).
+
+1. Open `~/.codex/config.toml` in a plain-text editor. Create the directory and file if they do not exist. In Finder, **Go → Go to Folder…** accepts `~/.codex`.
+2. Add the following TOML tables, preserving your other settings. If a `rinku` server is already configured, update its existing tables instead of adding duplicates.
+3. Replace the example library path with `RINKU_MCP_ALLOWED_ROOTS` from **Rinku → Settings → MCP**. Use the exact `command` and `args` values from Rinku's copied configuration if your app is installed somewhere other than `/Applications/Rinku.app`.
+
+```toml
+[mcp_servers.rinku]
+command = "/Applications/Rinku.app/Contents/MacOS/Rinku"
+args = [
+  "/Applications/Rinku.app/Contents/Resources/app.asar/bin/rinku.js",
+  "mcp",
+  "serve"
+]
+
+[mcp_servers.rinku.env]
+ELECTRON_RUN_AS_NODE = "1"
+RINKU_MCP_ALLOWED_ROOTS = "/absolute/path/to/your/Library"
+RINKU_MCP_READ_ONLY = "true"
+```
+
+4. Save the file and restart the desktop app or reconnect the agent. Ask it to use `rinku_list_libraries`, then search your saved links. If you use Codex CLI, `codex mcp list` lists configured servers and `/mcp` in an interactive session shows active servers.
+
+Codex uses TOML, so do not paste Rinku's JSON directly into this file. The JSON `mcpServers.rinku` object becomes `[mcp_servers.rinku]`, and its `env` object becomes `[mcp_servers.rinku.env]`. Keep environment values quoted as strings, including `"true"` and `"1"`. Spaces in library paths are supported inside the quotes; no shell escaping is needed. Set `RINKU_MCP_READ_ONLY = "false"` to permit edits, then reconnect.
+
+This setup is for local agent connections. ChatGPT on the web uses remote MCP-backed tools and does not launch Rinku's local stdio process through this file.
 
 ### Connect from a source checkout
 
@@ -110,7 +139,9 @@ rinku_rebuild_index
 
 Tool names also accept dotted aliases such as `rinku.list_links`. Tool discovery includes input schemas and read/write annotations. Successful calls return both JSON text and structured content. Execution errors return `isError: true`, allowing clients to report or correct failed operations.
 
-`rinku_list_links` accepts `status` (`active`, `archived`, or `all`), `label`, `tag`, `context`, `search`, `olderThanDays`, and `limit`. Omitting status returns both active and archived links. Link operations accept an ID, filename, URL, title, or unambiguous partial reference in `ref`. IDs are recommended. Creation accepts `url`, `title`, `label`, `tags`, `contexts`, and `body`; updates accept the same metadata except `url`. Unknown fields and invalid types are rejected. Automated creation accepts only HTTP/HTTPS URLs and does not fetch remote titles implicitly.
+`rinku_list_links` accepts `status` (`active`, `archived`, or `all`), `label`, `tag`, `context`, `search`, `olderThanDays`, and `limit`. Omitting status returns both active and archived links. Link operations accept an ID, filename, URL, title, or unambiguous partial reference in `ref`. IDs are recommended. Creation accepts `url`, `title`, `fetchTitle`, `label`, `tags`, `contexts`, and `body`; updates accept the same metadata except `url` and `fetchTitle`. Unknown fields and invalid types are rejected. Automated creation accepts only HTTP/HTTPS URLs. Set `fetchTitle: true` to fetch the page title when `title` is omitted or blank. The default is false, so agents must explicitly request a network fetch. A supplied title takes priority; duplicates preserve their saved title without fetching. Fetch failures fall back to the URL.
+
+The desktop app automatically reloads the open library's index after MCP, CLI, or API writes, usually within a second. Search, filters, scroll position, and open editors stay in place; these background saves do not open the capture popup. The app watches the shared index and settings files, including atomic replacements in cloud folders. Direct edits to link Markdown files still require rebuilding the index.
 
 Requests are serialized within each MCP process. Use one writer process per library for bulk automation; there is no cross-process synchronization between the desktop app, CLI, HTTP API, and MCP.
 

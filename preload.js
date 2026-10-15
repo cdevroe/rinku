@@ -37,5 +37,10 @@ contextBridge.exposeInMainWorld('rinku', {
     ipcRenderer.on('rinku:capture-created', handler);
     return () => ipcRenderer.removeListener('rinku:capture-created', handler);
   },
+  onLibraryChanged: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('rinku:library-changed', handler);
+    return () => ipcRenderer.removeListener('rinku:library-changed', handler);
+  },
   openExternal: (url) => ipcRenderer.invoke('rinku:open-external', url),
 });

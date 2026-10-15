@@ -32,6 +32,8 @@ let virtualRenderKey = '';
 let captureReviewReturnFocus = null;
 let captureReviewClosing = null;
 let refreshSafariCaptureStatus = null;
+let libraryRefreshPending = false;
+let libraryRefreshInFlight = false;
 
 const LINK_ROW_HEIGHT = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--link-row-height')) || 98;
 const LINK_ROW_OVERSCAN = 8;
@@ -244,9 +246,11 @@ async function reloadIndex(options = {}) {
     return;
   }
 
-  const result = await window.rinku.listLinks(state.libraryRoot, {
+  const libraryRoot = state.libraryRoot;
+  const result = await window.rinku.listLinks(libraryRoot, {
     rebuild: options.rebuild === true,
   });
+  if (libraryRoot !== state.libraryRoot) return;
   state.indexLinks = result.links;
   state.indexLoaded = true;
 }
@@ -1957,10 +1961,32 @@ async function refreshLinks(options = {}) {
   state.links = state.indexLinks.filter((link) => linkMatchesLocalFilters(link, state.filters, search));
   if (!state.links.some((link) => link.id === state.focusedLinkId)) state.focusedLinkId = state.links[0]?.id || '';
   renderSidebar();
-  renderLinks({ resetScroll: options.resetScroll === true });
+  // Background changes must not replace a settings form while it is being edited.
+  if (options.background !== true || state.navMode !== 'settings') {
+    renderLinks({ resetScroll: options.resetScroll === true });
+  }
 
   if (state.selectedId && !state.links.some((link) => link.id === state.selectedId)) {
     clearDetail();
+  }
+}
+
+async function refreshChangedLibrary() {
+  libraryRefreshPending = true;
+  if (libraryRefreshInFlight) return;
+  libraryRefreshInFlight = true;
+  try {
+    while (libraryRefreshPending) {
+      libraryRefreshPending = false;
+      const libraryRoot = state.libraryRoot;
+      if (!libraryRoot) continue;
+      const settings = await window.rinku.readSettings(libraryRoot);
+      if (libraryRoot !== state.libraryRoot) continue;
+      state.settings = settings;
+      await refreshLinks({ reload: true, background: true });
+    }
+  } finally {
+    libraryRefreshInFlight = false;
   }
 }
 
@@ -2514,6 +2540,9 @@ async function init() {
   });
   window.rinku.onCommand((command) => runKeyboardCommand(command).catch(showError));
   initShortcutHints();
+  window.rinku.onLibraryChanged((payload) => {
+    if (payload?.libraryRoot === state.libraryRoot) refreshChangedLibrary().catch(showError);
+  });
   els.search.addEventListener('input', () => refreshLinks({ resetScroll: true }).catch(showError));
   els.linksList.addEventListener('scroll', scheduleVirtualRender, { passive: true });
   bindChromeButtons();

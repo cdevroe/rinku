@@ -62,6 +62,10 @@ Choose **Light**, **Dark**, or **Auto** in **Settings > Appearance**. Auto is th
 
 Adding an existing URL reopens its saved information in the capture popup, with a notice that it is already saved. Its title, notes, labels, tags, and contexts are preserved until you edit them. Archived links stay archived and are identified in the notice. Quick Add, Safari capture, and popup capture all use this behavior.
 
+Links saved, edited, archived, or restored through MCP, the CLI, or the HTTP API appear automatically in the open library, usually within a second. Your search, filters, and open editors stay in place.
+
+When no title is supplied, Quick Add and capture fetch the page's Open Graph, Twitter, or HTML title. Fetching supports redirects, compressed pages, and common character encodings, with an eight-second total timeout and a 1 MiB decompressed limit. MCP/API saves can request the same behavior with `fetchTitle: true`. If a site blocks requests, requires a login, or generates its title only with JavaScript, Rinku falls back to the URL. The Safari extension and bookmarklet can supply the title directly from the page open in your browser.
+
 URL matching ignores surrounding whitespace, host casing, default ports, and an omitted root slash. Different paths, query parameters, and fragments remain distinct. Unmark import keeps its existing exact-URL matching and explicit duplicate-import option.
 
 ## Keyboard Controls

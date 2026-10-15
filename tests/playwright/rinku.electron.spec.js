@@ -369,6 +369,67 @@ test('MCP settings copies a working connection using the app runtime and selecte
   }
 });
 
+test('MCP changes appear automatically and preserve filters and editors', async () => {
+  const fixture = await seedLibrary();
+  let app;
+  const client = new Client({ name: 'rinku-live-library-test', version: '1.0.0' });
+  try {
+    app = await launchRinku({ libraryRoot: fixture.libraryRoot });
+    const { page, electronApp } = app;
+    const config = await page.evaluate(() => window.rinku.mcpConfig(true));
+    await client.connect(new StdioClientTransport({ ...config.mcpServers.rinku, stderr: 'pipe' }));
+    const call = async (name, args) => {
+      const result = await client.callTool({ name, arguments: { libraryRoot: fixture.libraryRoot, ...args } });
+      expect(result.isError).not.toBe(true);
+      return result.structuredContent;
+    };
+    await page.locator('#search').fill('science');
+    await rowByTitle(page, 'Science Home Read').getByLabel('Info', { exact: true }).click();
+    await page.locator('#detailBody').fill('Keep these notes while MCP saves.');
+    const added = await call('rinku_create_link', { url: 'https://example.com/live-mcp', title: 'Science from MCP', tags: ['new-tag'] });
+    await expect(rowByTitle(page, 'Science from MCP')).toBeVisible();
+    await expect(page.locator('#search')).toHaveValue('science');
+    await expect(page.locator('#detailTitle')).toHaveText('Science Home Read');
+    await expect(page.locator('#detailBody')).toHaveValue('Keep these notes while MCP saves.');
+    await expect(rowByTitle(page, 'Cooking Home Read')).toHaveCount(0);
+    await expect(page.locator('#captureReviewModal')).toHaveClass(/hidden/);
+    await call('rinku_update_link', { ref: added.id, title: 'Science updated by MCP' });
+    await expect(rowByTitle(page, 'Science updated by MCP')).toBeVisible();
+    await call('rinku_archive_link', { ref: added.id });
+    await expect(rowByTitle(page, 'Science updated by MCP')).toHaveCount(0);
+    await call('rinku_restore_link', { ref: added.id });
+    await expect(rowByTitle(page, 'Science updated by MCP')).toBeVisible();
+
+    // A refresh must not replace unsaved organization settings.
+    await page.locator('#settingsButton').click();
+    await filterButton(page, 'Organization').click();
+    const nameInput = page.locator('[data-label-id="read"] [data-label-name-input="true"]');
+    await nameInput.fill('Unsaved label name');
+    const whileEditing = await call('rinku_create_link', { url: 'https://example.com/while-editing', title: 'Science while editing settings' });
+    await expect.poll(() => page.evaluate(() => state.indexLinks.some(link => link.title === 'Science while editing settings'))).toBe(true);
+    await expect(nameInput).toHaveValue('Unsaved label name');
+
+    // Changing libraries detaches the previous watcher and ignores its events.
+    const otherLibrary = path.join(fixture.root, 'Other Library');
+    await createLibrary(otherLibrary);
+    await electronApp.evaluate(({ dialog }, libraryRoot) => {
+      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [libraryRoot] });
+    }, otherLibrary);
+    await filterButton(page, 'Library').click();
+    await page.locator('.settingsPage').getByRole('button', { name: 'Open', exact: true }).click();
+    await page.locator('#allLinksButton').click();
+    await expect(page.locator('#listCount')).toHaveText('0');
+    await page.locator('#search').fill('');
+    await call('rinku_update_link', { ref: whileEditing.id, title: 'Old library update' });
+    await addLink(otherLibrary, { url: 'https://example.com/other-library', title: 'New library link' });
+    await expect(rowByTitle(page, 'New library link')).toBeVisible();
+    await expect(rowByTitle(page, 'Old library update')).toHaveCount(0);
+  } finally {
+    await client.close();
+    await cleanup([fixture.root, app && app.userDataDir], app && app.electronApp);
+  }
+});
+
 test('capture settings guides Safari setup and preserves both bookmarklets', async () => {
   const fixture = await seedLibrary();
   let app;
