@@ -52,6 +52,6 @@ Contributions are made under the project's [MIT license](LICENSE). For private v
 
 ## Releases
 
-Release packaging is maintained separately from pull-request CI. See [Preparing a release](docs/releases.md) and the [macOS signing guide](docs/macos-signing.md). The CI workflow tests source changes; it does not publish installers or access release credentials. The manual **Build installers** workflow creates downloadable artifacts without publishing a GitHub release.
+Release packaging is maintained separately from pull-request CI. See [Preparing a release](docs/releases.md) and the [macOS signing guide](docs/macos-signing.md). The CI workflow tests source changes; it does not build installers, publish downloads, or access release credentials.
 
-Local builds are the standard release workflow; running GitHub Actions is optional. See [Local security checks](docs/security-checks.md) for dependency auditing and Git-history secret scanning.
+Release installers are built on the maintainer's computer and uploaded to a draft GitHub release. See [Local security checks](docs/security-checks.md) for dependency auditing and Git-history secret scanning.
