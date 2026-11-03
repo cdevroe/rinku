@@ -10,7 +10,7 @@ npm run test:all
 
 Audit the entire dependency tree. `npm audit --omit=dev` excludes Electron and the packaging tools even though Electron ships in the desktop app. On Windows/Linux, use `npm test`, `npm run test:release`, and `npm run test:build-proxy`; the complete suite also requires macOS native Safari tools.
 
-Electron 44 replaces the unsupported Electron 40 line. The lockfile pins the tested dependency versions, including the native image libraries used to generate icons. Keep the app's bundled Electron runtime current along with its JavaScript dependencies.
+Electron is pinned to 45.2.1, which bundles Chromium 156.0.8078.75 and includes the fixes for CVE-2026-118306, CVE-2026-118331, CVE-2026-118348, and CVE-2026-118344. The lockfile pins the tested dependency versions, including the native image libraries used to generate icons. Keep the app's bundled Electron runtime current along with its JavaScript dependencies.
 
 The scoped override for `@electron/get@3.1.0` selects `global-agent@4.1.3`, removing the old `roarr`/`sprintf-js` logger chain affected by GHSA-hp3w-g68c-fv3c. This affects electron-builder's download tooling. Its `bootstrap()` interface is exercised by `npm run test:build-proxy`, including proxy routing and `NO_PROXY` bypass. Review and remove the override when the pinned builder updates its downloader. Avoid `npm audit fix --force`: its proposed downgrade can undo the reviewed builder/signing configuration.
 
