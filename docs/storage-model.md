@@ -26,6 +26,11 @@ Rinku stores each library as a user-owned folder on disk. The storage format sho
     Unlabeled/
   .rinku/
     index.json
+    recovery/
+      <batch-uuid>/
+        manifest.json
+        0-original.md
+        0-removed.md
 ```
 
 ## Folder Rules
@@ -37,6 +42,10 @@ Rinku stores each library as a user-owned folder on disk. The storage format sho
 - Renaming a label moves affected records between label folders.
 - Archiving a link moves it from `links/<label>/` to `archive/<label>/`.
 - Restoring a link moves it from `archive/<label>/` to `links/<label>/`.
+- Recoverable deletion moves a file out of both trees into `.rinku/recovery/`.
+  That area is not indexed, is not OS Trash, and is retained until explicitly
+  managed by the user. MCP can list receipts and restore removed records without
+  overwriting an existing bookmark.
 
 ## Link Files
 
@@ -69,6 +78,13 @@ example.com-example-title-rkabc123def456.md
 ```
 
 The id remains canonical if the title or URL later changes.
+
+Merged bookmarks may have a `mergeHistory` array in frontmatter. Each entry
+contains the batch ID, policy, time, and full original records with their exact
+Markdown text. This preserves conflicting titles/labels, distinct notes,
+source/import metadata, and prior history while keeping a single canonical title,
+label, and archive state on the survivor. Ordinary edits preserve this field.
+See [MCP cleanup and recovery](cli-mcp.md#duplicate-cleanup-entirely-through-mcp).
 
 ## Library Settings
 

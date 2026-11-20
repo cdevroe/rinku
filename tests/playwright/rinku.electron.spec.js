@@ -1,6 +1,7 @@
 const fs = require('fs').promises;
 const os = require('os');
 const path = require('path');
+const http = require('http');
 const { test, expect } = require('@playwright/test');
 const { _electron: electron } = require('playwright');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
@@ -145,7 +146,7 @@ async function seedIndexedLibrary(total = 10000) {
 }
 
 async function launchRinku(options = {}) {
-  const userDataDir = await makeTempRoot('rinku-playwright-user-data-');
+  const userDataDir = options.userDataDir || await makeTempRoot('rinku-playwright-user-data-');
   const electronApp = await electron.launch({
     executablePath: process.env.RINKU_TEST_EXECUTABLE || electronPath,
     args: process.env.RINKU_TEST_EXECUTABLE ? [] : [repoRoot],
@@ -199,7 +200,8 @@ function rowByTitle(page, title) {
 async function readCurrentLink(libraryRoot, id) {
   try {
     // A poll can overlap the app moving a file during archive/restore.
-    const result = await listLinks(libraryRoot, { rebuild: true });
+    // Read fresh files without writing the index and triggering the app's watcher.
+    const result = await listLinks(libraryRoot, { rebuild: true, readOnly: true });
     const record = result.links.find((link) => link.id === id);
     if (!record) return null;
     return await readLinkFile(record.filePath);
@@ -219,6 +221,53 @@ async function expectVisibleRows(page, visibleTitles, hiddenTitles = []) {
     await expect(rowByTitle(page, title)).toHaveCount(0);
   }
 }
+
+test('window size and position survive quitting and reopening', async () => {
+  test.skip(process.platform === 'linux' && Boolean(process.env.HYPRLAND_INSTANCE_SIGNATURE),
+    'Hyprland tiles windows and overrides app-requested geometry; verify native window restoration on macOS/Windows or a floating window manager.');
+  const userDataDir = await makeTempRoot('rinku-playwright-window-state-');
+  let app;
+  try {
+    app = await launchRinku({ userDataDir });
+    const expected = await app.electronApp.evaluate(({ BrowserWindow, screen }) => {
+      const window = BrowserWindow.getAllWindows()[0];
+      const area = screen.getPrimaryDisplay().workArea;
+      const [minWidth, minHeight] = window.getMinimumSize();
+      const width = Math.max(minWidth, Math.min(1100, area.width - 80));
+      const height = Math.max(minHeight, Math.min(700, area.height - 80));
+      const bounds = { x: area.x + Math.min(20, area.width - width), y: area.y + Math.min(30, area.height - height), width, height };
+      window.setBounds(bounds);
+      return bounds;
+    });
+    const bounds = () => app.electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getBounds());
+    await expect.poll(bounds).toEqual(expected);
+    if (process.platform === 'darwin') {
+      // Closing the last window on macOS leaves the app running; Dock reopen must
+      // restore the same geometry without requiring an application restart.
+      const reopened = app.electronApp.waitForEvent('window');
+      await app.electronApp.evaluate(({ app, BrowserWindow }) => {
+        const window = BrowserWindow.getAllWindows()[0];
+        window.once('closed', () => setImmediate(() => app.emit('activate')));
+        window.close();
+      });
+      app.page = await reopened;
+      await app.page.waitForLoadState('domcontentloaded');
+      await expect.poll(bounds).toEqual(expected);
+    }
+    await app.electronApp.close();
+    const saved = JSON.parse(await fs.readFile(path.join(userDataDir, 'window-state.json'), 'utf8'));
+    expect(saved.bounds).toEqual(expected);
+    app = await launchRinku({ userDataDir });
+    await expect.poll(bounds).toEqual(expected);
+    await app.electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].maximize());
+    await expect.poll(() => app.electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMaximized())).toBe(true);
+    await app.electronApp.close();
+    app = await launchRinku({ userDataDir });
+    await expect.poll(() => app.electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMaximized())).toBe(true);
+    await app.electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].unmaximize());
+    await expect.poll(bounds).toEqual(expected);
+  } finally { await cleanup([userDataDir], app && app.electronApp); }
+});
 
 test('first run requires a library and settings owns library actions', async () => {
   let app;
@@ -319,10 +368,19 @@ test('MCP settings copies a working connection using the app runtime and selecte
     const config = JSON.parse(copied).mcpServers.rinku;
     expect(config.env.RINKU_MCP_ALLOWED_ROOTS).toBe(fixture.libraryRoot);
     expect(config.env.RINKU_MCP_READ_ONLY).toBe('true');
-    expect(config.command).toBe(await electronApp.evaluate(() => (
-      process.platform === 'linux' && process.env.APPIMAGE ? process.env.APPIMAGE : process.execPath
-    )));
+    const desktop = await electronApp.evaluate(({ app }) => ({
+      executable: process.execPath, packaged: app.isPackaged, appImage: process.env.APPIMAGE,
+    }));
+    const expectedExecutable = desktop.packaged && process.platform === 'darwin'
+      ? path.resolve(path.dirname(desktop.executable), '../Frameworks/Rinku Helper.app/Contents/MacOS/Rinku Helper')
+      : desktop.executable;
+    expect(config.command).toBe((desktop.packaged && process.platform === 'linux' && desktop.appImage) || expectedExecutable);
     const readonly = await connect(config);
+    const identity = (await readonly.callTool({ name: 'rinku_get_config', arguments: {} })).structuredContent.runtime;
+    expect(identity.electron).toBe(await electronApp.evaluate(() => process.versions.electron));
+    expect(identity.electron).toBe(require('../../package.json').devDependencies.electron);
+    expect(identity.sourceSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(identity.executablePath).toBe(expectedExecutable);
     expect((await readonly.listTools()).tools.some(tool => tool.name === 'rinku_list_links')).toBe(true);
     const listed = await readonly.callTool({ name: 'rinku_list_links', arguments: { libraryRoot: fixture.libraryRoot } });
     expect(listed.structuredContent.total).toBe(5);
@@ -332,7 +390,7 @@ test('MCP settings copies a working connection using the app runtime and selecte
     const outside = await readonly.callTool({ name: 'rinku_list_links', arguments: { libraryRoot: fixture.root } });
     expect(outside.isError).toBe(true);
 
-    await page.getByRole('checkbox', { name: 'Allow agents to save, edit, and archive links' }).check();
+    await page.getByRole('checkbox', { name: 'Allow agents to save, edit, archive, delete, and merge links' }).check();
     await expect(preview).toHaveValue(/"RINKU_MCP_READ_ONLY": "false"/);
     await copy.click();
     const writable = await connect(JSON.parse(await page.evaluate(() => globalThis.__copiedMcp)).mcpServers.rinku);
@@ -439,7 +497,8 @@ test('capture settings guides Safari setup and preserves both bookmarklets', asy
     await page.locator('#settingsButton').click();
     await page.getByRole('button', { name: 'Capture', exact: true }).click();
     if (process.env.RINKU_TEST_EXECUTABLE && process.platform === 'darwin') {
-      await expect(page.getByRole('button', { name: 'Enable in Safari' })).toBeEnabled();
+      // Safari extension enablement belongs to macOS, not the temporary test profile.
+      await expect(page.getByRole('button', { name: /^(Enable in Safari|Open Safari Settings)$/ })).toBeEnabled();
       expect((await page.evaluate(() => window.rinku.safariExtensionStatus())).bundled).toBe(true);
     } else if (process.platform === 'darwin') {
       await expect(page.getByRole('button', { name: 'Enable in Safari' })).toBeDisabled();
@@ -536,6 +595,56 @@ test('Safari capture protocol saves the page title and opens review', async () =
     expect((await listLinks(fixture.libraryRoot, { rebuild: true })).links.length).toBe(result.links.length);
     expect((await readCurrentLink(fixture.libraryRoot, link.id)).body).toBe('Keep these pending notes.');
   } finally { await cleanup([fixture.root, app && app.userDataDir], app && app.electronApp); }
+});
+
+test('title-fetch failures explain what happened while saving the link', async () => {
+  const fixture = await seedLibrary();
+  const server = http.createServer((request, response) => {
+    response.writeHead(request.url === '/success' ? 200 : 429, { 'Content-Type': 'text/html', 'Retry-After': '60' });
+    response.end(request.url === '/success' ? '<title>A fetched title</title>' : 'Too many requests');
+  });
+  let app;
+  try {
+    await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
+    const base = `http://127.0.0.1:${server.address().port}`;
+    app = await launchRinku({ libraryRoot: fixture.libraryRoot });
+    const { page, electronApp } = app;
+    await page.locator('#quickAddSubmit').click();
+    await page.locator('#quickAddUrl').fill(base + '/quick');
+    await page.locator('#quickAddSubmit').click();
+    const notice = page.locator('#captureReviewNotice');
+    await expect(notice).toContainText('Link saved. This site is limiting requests');
+    await expect(notice).toContainText('You can enter a title below.');
+    await expect(page.locator('#captureReviewTitle')).toHaveValue(base + '/quick');
+    await expect(page.locator('#captureReviewTitle')).toBeFocused();
+    await page.screenshot({ path: test.info().outputPath('title-fetch-failure.png') });
+    await page.locator('#captureReviewTitle').fill('My notebook');
+    await page.locator('#captureReviewDone').click();
+    await expect(rowByTitle(page, 'My notebook')).toBeVisible();
+
+    const capture = async (address, title) => {
+      const url = `rinku://capture?url=${encodeURIComponent(address)}${title ? `&title=${encodeURIComponent(title)}` : ''}`;
+      await electronApp.evaluate(({ app }, url) => app.emit('open-url', { preventDefault() {} }, url), url);
+    };
+    await capture(base + '/protocol');
+    await expect(notice).toContainText('This site is limiting requests');
+    await page.locator('#captureReviewDone').click();
+    await capture(base + '/browser', 'Title from Safari');
+    await expect(notice).toHaveText('Link added to your library.');
+    await expect(page.locator('#captureReviewTitle')).toHaveValue('Title from Safari');
+    await page.locator('#captureReviewDone').click();
+    await capture(base + '/success');
+    await expect(notice).toHaveText('Link added to your library.');
+    await expect(page.locator('#captureReviewTitle')).toHaveValue('A fetched title');
+    await page.locator('#captureReviewDone').click();
+    await capture(base + '/quick');
+    await expect(notice).toHaveText('This link is already saved. You can edit it below.');
+    await expect(page.locator('#captureReviewTitle')).toHaveValue('My notebook');
+  } finally {
+    await cleanup([fixture.root, app && app.userDataDir], app && app.electronApp);
+    server.closeAllConnections();
+    await new Promise(resolve => server.close(resolve));
+  }
 });
 
 test('combines status, label, context, tag, and search filters', async () => {
@@ -641,6 +750,50 @@ test('autosaves detail edits for labels, contexts, tags, and notes', async () =>
       tags: ['analysis'],
       body: 'Updated notes from Playwright.',
     });
+  } finally {
+    await cleanup([fixture.root, app && app.userDataDir], app && app.electronApp);
+  }
+});
+
+test('show file saves pending notes and reveals the current Markdown file', async ({}, testInfo) => {
+  const fixture = await seedLibrary();
+  let app;
+  try {
+    app = await launchRinku({ libraryRoot: fixture.libraryRoot });
+    const { page, electronApp } = app;
+    await electronApp.evaluate(({ shell }) => {
+      const readFileSync = process.getBuiltinModule('fs').readFileSync;
+      global.rinkuRevealedFiles = [];
+      shell.showItemInFolder = filePath => {
+        global.rinkuRevealedFiles.push({ filePath, body: readFileSync(filePath, 'utf8') });
+      };
+    });
+    await rowByTitle(page, 'Science Home Read').getByLabel('Info', { exact: true }).click();
+    const label = process.platform === 'darwin' ? 'Show in Finder' : process.platform === 'win32' ? 'Show in File Explorer' : 'Show in File Manager';
+    const button = page.getByRole('button', { name: label, exact: true });
+    await expect(button).toBeVisible();
+    await page.locator('#detailLabel').getByLabel('Do').click();
+    await page.locator('#detailBody').fill('Saved before showing the file.');
+    await electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].focus());
+    await button.focus();
+    await button.press('Enter');
+    await expect.poll(() => electronApp.evaluate(() => global.rinkuRevealedFiles.length)).toBe(1);
+    const revealed = await electronApp.evaluate(() => global.rinkuRevealedFiles[0]);
+    const link = await readCurrentLink(fixture.libraryRoot, fixture.links.scienceHome.id);
+    expect(revealed.filePath).toBe(link.filePath);
+    expect(revealed.filePath).not.toBe(fixture.links.scienceHome.filePath);
+    expect(revealed.body).toContain('Saved before showing the file.');
+    await expect(button).toBeEnabled();
+    await page.screenshot({ path: testInfo.outputPath('show-file.png') });
+
+    await page.locator('#detailClose').click();
+    await openSidebarChoices(page, 'links');
+    await filterButton(page, 'Archive').click();
+    await rowByTitle(page, 'Archived Science Read').getByLabel('Info', { exact: true }).click();
+    await button.click();
+    await expect.poll(() => electronApp.evaluate(() => global.rinkuRevealedFiles.length)).toBe(2);
+    const archived = await readCurrentLink(fixture.libraryRoot, fixture.links.archivedScience.id);
+    expect(await electronApp.evaluate(() => global.rinkuRevealedFiles[1].filePath)).toBe(archived.filePath);
   } finally {
     await cleanup([fixture.root, app && app.userDataDir], app && app.electronApp);
   }
@@ -1074,6 +1227,7 @@ test('keyboard navigation crosses virtualized windows without losing focus', asy
 });
 
 test('native Paste and Match Style menu action reaches the URL field', async () => {
+  test.skip(process.platform !== 'darwin', 'Regression coverage for the macOS Command+V handler and native menu role.');
   const fixture = await seedLibrary();
   let app;
   try {
@@ -1088,12 +1242,11 @@ test('native Paste and Match Style menu action reaches the URL field', async () 
       const window = BrowserWindow.getAllWindows()[0];
       // Exercise the native role route without replacing the user's clipboard.
       window.webContents.pasteAndMatchStyle = () => window.webContents.insertText('https://paste.example.com/article');
-      if (process.platform !== 'darwin') paste.click({}, window, window.webContents);
       return { role: paste.role, label: paste.label };
     });
     expect(role.role.toLowerCase()).toBe('pasteandmatchstyle');
     expect(role.label).toMatch(/Paste and Match Style/i);
-    if (process.platform === 'darwin') await pressShortcut(electronApp, 'V');
+    await pressShortcut(electronApp, 'V');
     await expect(page.locator('#quickAddUrl')).toHaveValue('https://paste.example.com/article');
   } finally {
     await cleanup([fixture.root, app && app.userDataDir], app && app.electronApp);

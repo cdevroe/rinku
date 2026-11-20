@@ -67,7 +67,12 @@ function requestText(url, options = {}, body = '') {
 
 function createContentServer(html) {
   return new Promise((resolve, reject) => {
-    const server = http.createServer((_request, response) => {
+    const server = http.createServer((request, response) => {
+      if (request.url.startsWith('/limited')) {
+        response.writeHead(429, { 'Retry-After': '60' });
+        response.end('Too many requests');
+        return;
+      }
       response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       response.end(html);
     });
@@ -178,6 +183,19 @@ async function run() {
     assert.strictEqual(response.body.duplicate, true);
     assert.strictEqual(response.body.link.id, updated.id);
     assert.strictEqual((await listLinks(libraryRoot, { rebuild: true })).links.length, 3);
+
+    const failedCapture = new URL(`${status.baseUrl}/capture`);
+    failedCapture.searchParams.set('url', `http://127.0.0.1:${contentServer.address().port}/limited/popup`);
+    const failedPopup = await requestText(failedCapture);
+    assert.strictEqual(failedPopup.statusCode, 201);
+    assert(failedPopup.body.includes('Link saved. This site is limiting requests'));
+    assert(failedPopup.body.includes('You can enter a title below.'));
+    assert.strictEqual(captured.titleFetch.reason, 'rate_limited');
+    failedCapture.searchParams.set('url', `http://127.0.0.1:${contentServer.address().port}/limited/json`);
+    const failedJson = await requestJson(failedCapture);
+    assert.strictEqual(failedJson.statusCode, 201);
+    assert.strictEqual(failedJson.body.titleFetch.statusCode, 429);
+    assert.strictEqual(failedJson.body.link.title, failedCapture.searchParams.get('url'));
 
     const stopped = await server.stop();
     assert.strictEqual(stopped.running, false);

@@ -17,6 +17,14 @@ macOS Safari builds and native tests need Xcode or Apple's Command Line Tools (`
 
 Use a disposable library when developing storage or migration changes. Libraries, exports, credentials, generated builds, and test artifacts belong outside Git.
 
+Batch fixes on a `beta/<version>` branch. When the batch is ready for daily
+testing on the maintainer's Mac, run `npm run install:mac`; do not install after
+every fix or commit. It validates, signs, notarizes, installs, tests, and opens
+`/Applications/Rinku.app`, then removes its temporary build copies. Use
+`npm run install:check` to verify that the installed source matches the current
+working tree. Use the local beta for a few days before preparing a GitHub
+release. See [the local install workflow](docs/local-install.md).
+
 ## Project layout
 
 - `app/`, `static/`, `index.html`: desktop UI and appearance.
@@ -32,11 +40,20 @@ Use a disposable library when developing storage or migration changes. Libraries
 ```sh
 npm test                 # Core behavior; runs on macOS, Windows, and Linux
 npm run test:build-proxy # Packaging downloader proxy compatibility
-npm run test:playwright  # Electron UI; requires a graphical session
-npm run test:all         # Full local suite, including native Safari checks on macOS
+npm run test:build-matching # Packaging file filters and universal archive merging
+npm run test:remote -- --grep "show file" # Focused UI test on Omarchy (maintainer)
+npm run test:playwright  # Electron UI; graphical session, explicit opt-in on macOS
+npm run test:all         # Full suite at beta/release checkpoints
 ```
 
 CI runs core tests on all three platforms, plus desktop, Safari, and signing checks on macOS. It uploads UI traces and screenshots when a job fails. The installed, signed-app Safari test is a separate release check and is skipped during normal source tests.
+
+Use focused checks during normal development; reserve full UI runs for meaningful
+beta/release checkpoints or broad regressions. The maintainer's routine UI target
+is the Omarchy desktop, so tests do not interrupt work on the Mac. Local macOS
+Playwright runs require `RINKU_ALLOW_GUI_TESTS=1` and an agreed test session;
+`install:mac` opts in at the agreed beta-install milestone. CI remains automatic.
+See [Desktop testing](docs/testing.md) for commands and platform coverage.
 
 The importer suite uses generated fixtures by default. To additionally test your own Unmark export, set `RINKU_TEST_UNMARK_EXPORT` to its absolute path before running `npm run test:import-unmark`. This imports into temporary libraries and checks that importing it again adds no duplicates. Never commit the export.
 

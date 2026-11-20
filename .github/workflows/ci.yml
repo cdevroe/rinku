@@ -33,6 +33,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run test:release
+      - run: npm run test:build-matching
 
   desktop:
     name: macOS desktop and Safari

@@ -1,6 +1,8 @@
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 require('dotenv').config({ quiet: true });
+// Keep the metadata identical in both architecture bundles before universal merging.
+process.env.RINKU_BUILD_TIME = new Date().toISOString();
 
 const skipNotarization = ['1', 'true', 'yes'].includes(String(process.env.RINKU_SKIP_NOTARIZATION || '').toLowerCase());
 if (!skipNotarization) {

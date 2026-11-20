@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-const { runCli } = require('../lib/cliApp');
+const { executeCli } = require('../lib/cliApp');
 
-runCli(process.argv.slice(2), 'rinku').then((output) => {
-  if (output) {
-    process.stdout.write(output);
-  }
+executeCli(process.argv.slice(2), 'rinku').then(({ stdout, stderr, exitCode }) => {
+  if (stdout) process.stdout.write(stdout);
+  if (stderr) process.stderr.write(stderr);
+  process.exitCode = exitCode;
 }).catch((error) => {
   process.stderr.write(`${error.message}\n`);
   process.exit(1);

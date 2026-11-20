@@ -1,7 +1,11 @@
 const assert = require('assert');
 const http = require('http');
 const zlib = require('zlib');
-const { cleanTitle, extractTitle, fetchTitleFromUrl } = require('../lib/titleFetcher');
+const fs = require('fs').promises;
+const os = require('os');
+const path = require('path');
+const { cleanTitle, extractTitle, fetchTitleFromUrl, fetchTitleDetails } = require('../lib/titleFetcher');
+const { createLibrary, createLink } = require('../lib/library');
 
 async function run() {
   assert.strictEqual(cleanTitle(' Caf&eacute;&nbsp;&mdash; &#x1F600; &#1114112; '), 'Café — 😀 �');
@@ -55,6 +59,14 @@ async function run() {
     } else if (request.url === '/error') {
       response.writeHead(403);
       response.end('<title>Forbidden</title>');
+    } else if (request.url.startsWith('/limited')) {
+      response.writeHead(429, { 'Retry-After': '60' });
+      response.end('Too many requests');
+    } else if (request.url === '/server-error') {
+      response.writeHead(503);
+      response.end('<title>Unavailable</title>');
+    } else if (request.url === '/no-title') {
+      response.end('<html><body>No title here</body></html>');
     } else if (request.url === '/aborted') {
       response.write('<title>Incomplete');
       setTimeout(() => response.destroy(), 10);
@@ -88,6 +100,42 @@ async function run() {
       const started = Date.now();
       assert.strictEqual(await fetchTitleFromUrl(base + route, { timeoutMs: 160 }), '');
       assert(Date.now() - started < 600, 'Enforce a total deadline, including redirects and streaming.');
+    }
+    for (const [route, reason] of [
+      ['/limited', 'rate_limited'], ['/error', 'blocked'], ['/server-error', 'http_error'],
+      ['/json', 'not_html'], ['/no-title', 'no_title'], ['/bad-gzip', 'unreadable'],
+      ['/aborted', 'network'], ['/drip', 'timeout'],
+    ]) {
+      const result = await fetchTitleDetails(base + route, { timeoutMs: 300 });
+      assert.strictEqual(result.title, '', route);
+      assert.strictEqual(result.reason, reason, route);
+      assert(result.message.startsWith('Link saved.'));
+      assert(result.message.endsWith('You can enter a title below.'));
+    }
+    assert.strictEqual((await fetchTitleDetails(base + '/limited')).statusCode, 429);
+    assert.deepStrictEqual(await fetchTitleDetails(base + '/gzip'), { title: 'Café & tea — 日本語' });
+
+    const library = await fs.mkdtemp(path.join(os.tmpdir(), 'rinku-title-failure-'));
+    try {
+      await createLibrary(library);
+      const url = base + '/limited/link';
+      const result = await createLink(library, { url });
+      assert.strictEqual(result.link.title, url, 'A title-fetch failure must still save the link.');
+      assert.strictEqual(result.titleFetch.reason, 'rate_limited');
+      assert(!(await fs.readFile(result.link.filePath, 'utf8')).includes('rate_limited'), 'Fetch failures are transient, not link metadata.');
+      const beforeDuplicate = requests.length;
+      const duplicate = await createLink(library, { url });
+      assert.strictEqual(duplicate.duplicate, true);
+      assert.strictEqual(duplicate.titleFetch, undefined, 'Do not report a new failure when no fetch was attempted.');
+      assert.strictEqual(requests.length, beforeDuplicate);
+      const supplied = await createLink(library, { url: base + '/limited/manual', title: 'Browser title' });
+      assert.strictEqual(supplied.link.title, 'Browser title');
+      assert.strictEqual(supplied.titleFetch, undefined);
+      const skipped = await createLink(library, { url: base + '/limited/skipped' }, { fetchTitle: false });
+      assert.strictEqual(skipped.titleFetch, undefined);
+      assert.strictEqual(requests.length, beforeDuplicate, 'Supplied titles and skipped fetching do not request the site.');
+    } finally {
+      await fs.rm(library, { recursive: true, force: true });
     }
     const before = requests.length;
     assert.strictEqual(await fetchTitleFromUrl('file:///tmp/secret'), '');

@@ -1019,7 +1019,7 @@ function renderMcpSettings(container) {
   access.className = 'mcpWriteAccess';
   const allowWrites = document.createElement('input');
   allowWrites.type = 'checkbox';
-  access.append(allowWrites, document.createTextNode('Allow agents to save, edit, and archive links'));
+  access.append(allowWrites, document.createTextNode('Allow agents to save, edit, archive, delete, and merge links'));
   const accessNote = document.createElement('p');
   accessNote.className = 'settingsHelp';
   accessNote.textContent = 'Read-only by default. This choice applies to the configuration you copy. To change an existing connection, replace its configuration and reconnect.';
@@ -1574,7 +1574,7 @@ function setCaptureReviewSaveState(message) {
   els.captureReviewSaveState.textContent = message || '';
 }
 
-function openCaptureReview(link, { duplicate = false } = {}) {
+function openCaptureReview(link, { duplicate = false, titleFetch } = {}) {
   if (!state.captureReview) captureReviewReturnFocus = document.activeElement;
   state.captureReview = link;
   state.captureReviewTags = Array.isArray(link.tags) ? link.tags : [];
@@ -1583,7 +1583,7 @@ function openCaptureReview(link, { duplicate = false } = {}) {
 
   els.captureReviewNotice.textContent = duplicate
     ? (link.status === 'archived' ? 'This link is already in your archive. You can edit it below.' : 'This link is already saved. You can edit it below.')
-    : 'Link added to your library.';
+    : (titleFetch?.message || 'Link added to your library.');
   els.captureReviewTitle.value = link.title || link.url || '';
   els.captureReviewUrl.textContent = [link.domain, link.url].filter(Boolean).join(' - ');
   renderCaptureReviewLabel(link.label);
@@ -2029,6 +2029,21 @@ async function toggleArchiveLink(link) {
   if (restoreFocus) focusLinkIndex(Math.max(0, focusedIndex));
 }
 
+async function revealDetailFile() {
+  const id = state.selectedId;
+  const libraryRoot = state.libraryRoot;
+  if (!id) return;
+  els.detailShowFile.disabled = true;
+  try {
+    await flushDetailSave();
+    if (state.selectedId === id && state.libraryRoot === libraryRoot) {
+      await window.rinku.revealLink(id);
+    }
+  } finally {
+    els.detailShowFile.disabled = false;
+  }
+}
+
 async function saveDetail() {
   if (!state.selectedId) return;
   const linkId = state.selectedId;
@@ -2128,7 +2143,7 @@ async function quickAdd(event) {
     setStatus(result.duplicate ? 'Link already saved.' : 'Link added.');
     await refreshLinks({ reload: true });
     if (result && result.link) {
-      openCaptureReview(result.link, { duplicate: result.duplicate });
+      openCaptureReview(result.link, { duplicate: result.duplicate, titleFetch: result.titleFetch });
     }
   } finally {
     state.quickAddPending = false;
@@ -2447,6 +2462,7 @@ function initIcons() {
   els.quickAddSubmit.appendChild(icon('plus'));
   els.searchIcon.replaceChildren(icon('search'));
   setIconOnly(els.detailClose, 'x');
+  els.detailShowFile.replaceChildren(icon('folder'), document.createTextNode(`Show in ${window.rinku.fileManagerName}`));
   setIconOnly(els.captureReviewDone, 'check');
 }
 
@@ -2471,6 +2487,7 @@ function cacheElements() {
     'detailLabel',
     'detailPane',
     'detailSaveState',
+    'detailShowFile',
     'detailTags',
     'detailTitle',
     'detailUrl',
@@ -2516,6 +2533,7 @@ async function init() {
     }
   });
   els.detailClose.addEventListener('click', () => closeDetail().catch(showError));
+  els.detailShowFile.addEventListener('click', () => revealDetailFile().catch(showError));
   els.detailBody.addEventListener('input', () => scheduleDetailSave(800));
   els.captureReviewDone.addEventListener('click', () => closeCaptureReview().catch(showError));
   els.captureReviewTitle.addEventListener('input', () => scheduleCaptureReviewSave(600));
@@ -2560,7 +2578,7 @@ async function init() {
         await flushDetailSave();
         if (state.captureReview) await closeCaptureReview();
         const current = await window.rinku.readLink(state.libraryRoot, link.id);
-        openCaptureReview(current, { duplicate: payload.duplicate });
+        openCaptureReview(current, { duplicate: payload.duplicate, titleFetch: payload.titleFetch });
       }
     }).catch(showError);
   });

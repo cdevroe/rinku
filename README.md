@@ -28,19 +28,21 @@ Run the storage, importer, CLI, MCP, API, and capture tests without launching El
 npm test
 ```
 
-Run the Electron UI coverage with Playwright:
+Run focused Electron UI coverage on the maintainer's Omarchy desktop:
 
 ```sh
-npm run test:playwright
+npm run test:remote -- --grep "show file"
 ```
 
-On macOS with Xcode Command Line Tools installed, run all tests (including Safari and signing checks):
+At an agreed beta/release checkpoint on macOS, run all tests (including Safari and
+signing checks). Electron tests take desktop focus, so local runs require opt-in:
 
 ```sh
-npm run test:all
+RINKU_ALLOW_GUI_TESTS=1 npm run test:all
 ```
 
 See [Contributing](CONTRIBUTING.md) for project structure, platform requirements, tests, and pull requests. Report vulnerabilities using [Security](SECURITY.md).
+See [Desktop testing](docs/testing.md) for other platforms and the remote workflow.
 
 ## API and MCP
 
@@ -54,9 +56,26 @@ Add `--write` to allow changes. The server prints its local URL and bearer token
 
 In the installed app, open **Settings → MCP** to copy a configuration with your library and app paths already filled in. No source checkout or separate Node.js installation is needed. Access is read-only by default; check the option to allow edits before copying if desired. See [MCP client configuration and tools](docs/cli-mcp.md#mcp), including setup from a source checkout.
 
+Write-mode MCP and the CLI support bulk metadata updates, recoverable deletion,
+and batched duplicate cleanup.
+Agents can preview exact or trailing-slash matches, merge into the oldest record
+while preserving metadata and notes, and recover deleted bookmarks without
+editing Markdown directly. See [cleanup policies and recovery](docs/cli-mcp.md#deletion-and-recovery).
+
+Use `rinku build-info --json` or MCP's `rinku_get_config.runtime` to identify the
+running version, build fingerprint, executable, and Electron/Node runtime.
+Reconnect existing MCP sessions after updating the installed app.
+
 ## Appearance
 
 Choose **Light**, **Dark**, or **Auto** in **Settings > Appearance**. Auto is the default and follows system appearance, including changes while Rinku is open. The setting is saved automatically on this device and applies across libraries.
+
+Rinku remembers its window size, position, and maximized state when you close it
+or quit. These preferences stay on this device and apply across libraries.
+The first window uses about 90% of the screen's usable area, up to 1440 × 960.
+If a monitor is disconnected or its usable area changes, the restored window is
+fitted to an available screen. Minimizing or using full screen does not overwrite
+your normal window dimensions; full-screen mode itself is not restored.
 
 ## Saving a link again
 
@@ -65,6 +84,11 @@ Adding an existing URL reopens its saved information in the capture popup, with 
 Links saved, edited, archived, or restored through MCP, the CLI, or the HTTP API appear automatically in the open library, usually within a second. Your search, filters, and open editors stay in place.
 
 When no title is supplied, Quick Add and capture fetch the page's Open Graph, Twitter, or HTML title. Fetching supports redirects, compressed pages, and common character encodings, with an eight-second total timeout and a 1 MiB decompressed limit. MCP/API saves can request the same behavior with `fetchTitle: true`. If a site blocks requests, requires a login, or generates its title only with JavaScript, Rinku falls back to the URL. The Safari extension and bookmarklet can supply the title directly from the page open in your browser.
+
+If fetching fails, the saved-link review explains why (such as a site rate limit,
+a refused request, a timeout, or a missing title) and lets you enter the title.
+The link is still saved. This notice also appears in popup capture; supplying a
+title from the browser or reopening an existing link does not show a fetch error.
 
 URL matching ignores surrounding whitespace, host casing, default ports, and an omitted root slash. Different paths, query parameters, and fragments remain distinct. Unmark import keeps its existing exact-URL matching and explicit duplicate-import option.
 
@@ -87,6 +111,11 @@ Open **Help > Keyboard Shortcuts** for the categorized in-app reference. Use Com
 | Cmd/Ctrl + / | Keyboard shortcut reference |
 
 Click a link row to open it in your browser, the circle on its left to archive or restore it, or its info button to edit its details. In the link list, Up/Down, Home/End, and Page Up/Page Down move focus through the entire library. Enter or O opens the link, I shows information, and E archives or restores it. These shortcuts only apply while the list has focus, so typing in an editor remains normal.
+
+Below Notes in the information panel, **Show in Finder** (macOS), **Show in File
+Explorer** (Windows), or **Show in File Manager** (Linux) reveals the link's
+Markdown file in its folder. Pending edits are saved first. This also works for
+archived links; Linux file managers may show the folder without selecting the file.
 
 Sidebar controls support arrow keys and Enter/Space. Right expands a switcher; Left or Escape collapses it. F6 and Shift+F6 move between the sidebar, link list, information panel, and search. From search, Down moves into the results; Escape clears the search and returns to the list.
 
@@ -158,6 +187,12 @@ The app URL scheme and local popup endpoint both save immediately and then provi
 
 ## Distribution Builds
 
+For the maintainer's daily testing copy in `/Applications`, use
+`npm run install:mac` when a batch of fixes on `beta/<version>` is ready for local
+testing, then use it for a few days before preparing a GitHub release. Do not
+reinstall after every change. `npm run install:check` compares the installed app
+with the working tree. See [the local install workflow](docs/local-install.md).
+
 Rinku uses `electron-builder`, with GitHub Releases metadata for updates.
 
 ```sh
@@ -182,7 +217,7 @@ npm run release:checksums
 
 Notes:
 
-- The manual **Build installers** GitHub Actions workflow builds on macOS, Windows, and Linux hosts, then combines and verifies the download set. It does not publish. See [Preparing a release](docs/releases.md) for signing secrets, downloads, and platform checks.
+- Release installers are built locally and uploaded to a draft GitHub release. GitHub Actions runs source tests only. See [Preparing a release](docs/releases.md) for signing, downloads, and platform checks.
 - Local build scripts use `--publish never`; publish release artifacts manually or through your release automation.
 - Standard public downloads are macOS universal, one Windows installer, and Linux `AppImage`/`deb` builds for `x64` and ARM64.
 - GitHub release metadata powers auto-updates through `electron-updater`.

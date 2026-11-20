@@ -23,6 +23,7 @@ if (process.argv.includes('--mcp-server')) {
     ipcMain,
     Menu,
     nativeTheme,
+    screen,
     shell,
   } = electron;
 
@@ -52,6 +53,8 @@ if (process.argv.includes('--mcp-server')) {
   const { importUnmarkExport } = require('./lib/importers');
   const { createMcpClientConfig } = require('./lib/mcpClientConfig');
   const { watchLibrary } = require('./lib/libraryWatcher');
+  const { resolveLinkFile } = require('./lib/linkFileLocation');
+  const { resolveWindowState, readWindowState, captureWindowState, saveWindowState } = require('./lib/windowState');
   const safariExtension = require('./lib/safariExtension').createSafariExtension({
     isPackaged: app.isPackaged,
     resourcesPath: process.resourcesPath,
@@ -84,11 +87,16 @@ if (process.argv.includes('--mcp-server')) {
   });
 
   function createWindow() {
+    const windowStatePath = path.join(app.getPath('userData'), 'window-state.json');
+    const windowState = resolveWindowState(
+      readWindowState(windowStatePath),
+      screen.getAllDisplays().map(display => display.workArea),
+      screen.getPrimaryDisplay().workArea
+    );
     mainWindow = new BrowserWindow({
-      width: 1180,
-      height: 760,
-      minWidth: 920,
-      minHeight: 560,
+      ...windowState.bounds,
+      minWidth: windowState.minWidth,
+      minHeight: windowState.minHeight,
       title: 'Rinku',
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
@@ -98,6 +106,16 @@ if (process.argv.includes('--mcp-server')) {
       },
     });
 
+    const window = mainWindow;
+    window.on('close', () => {
+      try {
+        // A tiny synchronous atomic write also completes when the app is quitting.
+        saveWindowState(windowStatePath, captureWindowState(window));
+      } catch (error) {
+        console.error('Could not save window size and position.', error);
+      }
+    });
+    if (windowState.maximized) window.maximize();
     mainWindow.loadFile(path.join(__dirname, 'index.html'));
     // Handle window input before the renderer and native menu can both act on it.
     mainWindow.webContents.on('before-input-event', (event, input) => {
@@ -500,6 +518,7 @@ if (process.argv.includes('--mcp-server')) {
       link: result.link,
       review: true,
       duplicate: result.duplicate,
+      titleFetch: result.titleFetch,
       source: 'protocol',
     });
     focusMainWindow();
@@ -586,6 +605,9 @@ if (process.argv.includes('--mcp-server')) {
   ipcMain.handle('rinku:rebuild-index', async (_event, libraryRoot) => rebuildIndex(libraryRoot));
   ipcMain.handle('rinku:list-links', async (_event, libraryRoot, filters) => listLinks(libraryRoot, filters || {}));
   ipcMain.handle('rinku:read-link', async (_event, libraryRoot, ref) => readLink(libraryRoot, ref));
+  ipcMain.handle('rinku:reveal-link', async (_event, id) => {
+    shell.showItemInFolder(await resolveLinkFile(currentLibraryRoot, id));
+  });
   ipcMain.handle('rinku:create-link', async (_event, libraryRoot, input) => createLink(libraryRoot, input || {}, { learnRule: Boolean(input && input.label) }));
   ipcMain.handle('rinku:update-link', async (_event, libraryRoot, ref, patch) => updateLink(libraryRoot, ref, patch || {}, { learnRule: patch && patch.label != null }));
   ipcMain.handle('rinku:archive-link', async (_event, libraryRoot, ref) => archiveLink(libraryRoot, ref));

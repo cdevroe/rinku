@@ -26,7 +26,12 @@ async function run() {
   const { root, libraryRoot } = await makeTempLibrary();
 
   try {
+    const settingsFile = path.join(libraryRoot, 'rinku-settings.md');
+    const beforeRead = await fs.stat(settingsFile);
     const settings = await readSettings(libraryRoot);
+    const afterRead = await fs.stat(settingsFile);
+    assert.strictEqual(afterRead.ino, beforeRead.ino, 'Reading settings must not replace the watched file.');
+    assert.strictEqual(afterRead.mtimeMs, beforeRead.mtimeMs, 'Reading settings must not trigger another refresh.');
     assert(settings.labels.some((label) => label.id === 'read'), 'default Read label should exist');
     assert.deepStrictEqual(settings.contexts, ['@Home', '@Work']);
     assert.strictEqual(settings.smartLabels.learnFromManualChanges, true);

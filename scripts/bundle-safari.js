@@ -3,6 +3,13 @@ const path = require('path');
 const { buildSafari, BRIDGE_NAME } = require('./build-safari');
 
 exports.default = async function bundleSafari(context) {
+  const root = path.join(__dirname, '..');
+  const resources = context.electronPlatformName === 'darwin'
+    ? path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`, 'Contents', 'Resources')
+    : path.join(context.appOutDir, 'resources');
+  const info = require('./build-info').buildInfo(root);
+  await fs.mkdir(resources, { recursive: true });
+  await fs.writeFile(path.join(resources, 'rinku-build.json'), `${JSON.stringify(info, null, 2)}\n`);
   if (context.electronPlatformName !== 'darwin') return;
   const contents = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`, 'Contents');
   const plugins = path.join(contents, 'PlugIns');

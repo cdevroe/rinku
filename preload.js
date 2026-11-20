@@ -1,6 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('rinku', {
+  fileManagerName: process.platform === 'darwin' ? 'Finder' : process.platform === 'win32' ? 'File Explorer' : 'File Manager',
+  revealLink: (id) => ipcRenderer.invoke('rinku:reveal-link', id),
   chooseLibraryDirectory: () => ipcRenderer.invoke('rinku:choose-library-directory'),
   chooseUnmarkExport: () => ipcRenderer.invoke('rinku:choose-unmark-export'),
   createLibrary: (libraryRoot) => ipcRenderer.invoke('rinku:create-library', libraryRoot),

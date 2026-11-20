@@ -4,9 +4,19 @@ The standard download set is a universal macOS DMG and ZIP, a Windows NSIS insta
 
 Release installers are built locally on the maintainer's computer. GitHub hosts the source, runs source tests, and stores the uploaded release downloads; it does not build installers.
 
+## Development and local beta cycle
+
+Accumulate fixes on `beta/<version>` (currently `beta/0.1.3`) and run focused core
+tests and relevant UI tests on Omarchy as they land. Reserve full UI runs for
+beta/release checkpoints or broad regressions; see [Desktop testing](testing.md).
+At an agreed milestone, install a signed, notarized local beta with
+`npm run install:mac`. Use it for a few days, fix any findings, and repeat the
+local beta when needed. Prepare and publish the GitHub release only after the
+user is satisfied with that testing. See [local installation](local-install.md).
+
 ## Local builds
 
-Run `npm ci` and `npm run test:all` on macOS before a release. On Windows/Linux, run `npm test`, `npm run test:release`, and `npm run test:build-proxy`. Build on each platform with:
+Run `npm ci` and `RINKU_ALLOW_GUI_TESTS=1 npm run test:all` in an agreed Mac test session before a release. On Windows/Linux, run `npm test`, `npm run test:release`, and `npm run test:build-proxy`. Build on each platform with:
 
 ```sh
 npm run dist:mac    # macOS: signed, notarized universal DMG/ZIP

@@ -2,7 +2,7 @@
   "name": "rinku",
   "productName": "Rinku",
   "description": "A local-first app for saving, organizing, and revisiting links.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "MIT",
   "author": "Colin Devroe <colin@cdevroe.com> (https://cdevroe.com)",
   "main": "main.js",
@@ -25,7 +25,11 @@
     "build:safari": "node scripts/build-safari.js",
     "postinstall": "node scripts/patch-mac-signing.js",
     "test:mac-signing": "node scripts/test-mac-signing.js",
-    "test": "node scripts/test-core.js && node scripts/test-title-fetcher.js && node scripts/test-library-watcher.js && node scripts/test-import-unmark.js && node scripts/test-cli.js && node scripts/test-mcp.js && node scripts/test-capture-server.js && node scripts/test-api.js",
+    "test:local-install": "node scripts/test-local-install.js",
+    "install:mac": "node scripts/install-mac.js",
+    "install:check": "node scripts/install-mac.js --check",
+    "test": "node scripts/test-core.js && node scripts/test-title-fetcher.js && node scripts/test-library-watcher.js && node scripts/test-window-state.js && node scripts/test-link-file-location.js && node scripts/test-import-unmark.js && node scripts/test-cli.js && node scripts/test-mcp.js && node scripts/test-cleanup.js && node scripts/test-automation.js && node scripts/test-capture-server.js && node scripts/test-api.js",
+    "test:window-state": "node scripts/test-window-state.js",
     "test:core": "node scripts/test-core.js",
     "test:import-unmark": "node scripts/test-import-unmark.js",
     "test:cli": "node scripts/test-cli.js",
@@ -35,7 +39,7 @@
     "test:capture": "node scripts/test-capture-server.js",
     "test:safari": "node scripts/test-safari.js",
     "test:playwright": "playwright test",
-    "test:all": "npm test && npm run test:release && npm run test:build-proxy && npm run test:mac-signing && npm run test:safari && npm run test:playwright",
+    "test:all": "npm test && npm run test:release && npm run test:build-proxy && npm run test:build-matching && npm run test:mac-signing && npm run test:local-install && npm run test:safari && npm run test:playwright",
     "dist": "npm run dist:mac",
     "dist:mac": "npm run build:icons && node scripts/dist-mac.js --universal",
     "dist:mac:arm64": "npm run build:icons && node scripts/dist-mac.js --arm64",
@@ -62,7 +66,12 @@
     "test:api": "node scripts/test-api.js",
     "test:release": "node scripts/test-release-assets.js",
     "release:checksums": "node scripts/verify-release-assets.js --write-checksums",
-    "test:build-proxy": "node scripts/test-build-proxy.js"
+    "test:build-proxy": "node scripts/test-build-proxy.js",
+    "test:build-matching": "node scripts/test-build-matching.js",
+    "test:files": "node scripts/test-link-file-location.js",
+    "test:remote": "node scripts/test-remote.js",
+    "test:cleanup": "node scripts/test-cleanup.js",
+    "test:automation": "node scripts/test-automation.js"
   },
   "devDependencies": {
     "@electron/notarize": "^3.1.1",
@@ -70,7 +79,7 @@
     "@fiahfy/icns": "^0.0.7",
     "@playwright/test": "^1.61.1",
     "dotenv": "^17.4.2",
-    "electron": "45.2.1",
+    "electron": "45.3.2",
     "electron-builder": "26.15.3",
     "node-api-headers": "1.9.0",
     "png-to-ico": "^3.0.1",
@@ -96,6 +105,12 @@
   "overrides": {
     "@electron/get@3.1.0": {
       "global-agent": "4.1.3"
+    },
+    "app-builder-lib@26.15.3": {
+      "minimatch@^10.2.5": "11.0.7"
+    },
+    "@electron/universal@2.0.3": {
+      "minimatch@^9.0.3": "11.0.7"
     }
   }
 }
