@@ -33,6 +33,14 @@ async function run() {
     const matcher = universalRequire('minimatch');
     assert.equal(matcher.minimatch('nested/Info.plist', '*.plist', { matchBase: true }), true);
     assert.equal(matcher.minimatch('nested/secret.txt', '*.plist', { matchBase: true }), false);
+    // The macOS universal merger assumes POSIX archive paths. Its listPackage
+    // conversion does not handle Windows separators; Windows packaging does
+    // not use this merger. Keep the real file filters and matcher checks above
+    // on every platform, and exercise archive merging on macOS and Linux.
+    if (process.platform === 'win32') {
+      console.log('test-build-matching passed: packaging allowlist, exclusions, traversal, and universal matcher; POSIX-only universal ASAR merge skipped on Windows');
+      return;
+    }
     const archives = {};
     for (const arch of ['x64', 'arm64']) {
       const dir = path.join(scratch, arch);

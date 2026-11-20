@@ -29,8 +29,9 @@ and includes the later fixes in the [11.0.7 release](https://github.com/isaacs/m
 Older 3.x/5.x consumers retain their callable API; do not replace every nested
 matcher with 11.x. `npm run test:build-matching` exercises the actual builder's
 file allowlist, exclusions, directory traversal, and universal packager's ASAR
-merge acceptance/rejection with disposable archives. CI runs this check on all
-three platforms. Remove or revise these overrides when upgrading the pinned
+merge acceptance/rejection with disposable archives. CI checks the file filters
+and matcher on all three platforms; the macOS universal merger assumes POSIX
+archive paths, so its archive checks run on macOS and Linux only. Remove or revise these overrides when upgrading the pinned
 builder to a version whose own dependency tree includes the fixes. The builder
 and its guarded macOS signing patch remain at the reviewed version 26.15.3.
 
