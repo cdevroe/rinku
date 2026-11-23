@@ -7,6 +7,7 @@ const SOURCE_PATHS = [
   'app', 'bin', 'lib', 'static', 'safari', 'scripts',
   'main.js', 'preload.js', 'index.html', 'package.json', 'package-lock.json',
   'electron-builder.json', 'build/Icon.svg', 'build/entitlements.mac.plist',
+  'build/installer.nsh',
 ];
 
 function sourceFingerprint(root) {

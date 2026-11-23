@@ -77,6 +77,7 @@ if (process.argv.includes('--mcp-server')) {
     downloadInProgress: false,
     reminderByVersion: {},
   };
+  const updatePrompts = require('./lib/updatePrompts').createUpdatePrompts();
   const captureServer = createLocalCaptureServer({
     getLibraryRoot: () => currentLibraryRoot,
     onCapture: (payload) => {
@@ -388,6 +389,10 @@ if (process.argv.includes('--mcp-server')) {
       return { ok: true, checked: false, reason: 'not-packaged' };
     }
 
+    if (updatePrompts.busy || updateState.downloadInProgress) {
+      return { ok: true, checked: false, reason: 'update-in-progress' };
+    }
+
     if (updateState.checkInProgress) {
       if (manual) {
         const win = getMainWindow();
@@ -441,7 +446,7 @@ if (process.argv.includes('--mcp-server')) {
       const manual = updateState.activeCheckIsManual;
       const version = info?.version;
       if (!manual && version && !isReminderExpired(version)) return;
-      await showUpdateAvailableDialog(info);
+      await updatePrompts.run('available', () => showUpdateAvailableDialog(info));
     });
 
     autoUpdater.on('update-not-available', async () => {
@@ -469,7 +474,7 @@ if (process.argv.includes('--mcp-server')) {
       updateState.downloadInProgress = false;
       const win = getMainWindow();
       if (win) win.setProgressBar(-1);
-      await showUpdateReadyDialog(info);
+      await updatePrompts.run('ready', () => showUpdateReadyDialog(info));
     });
 
     autoUpdater.on('error', async (error) => {

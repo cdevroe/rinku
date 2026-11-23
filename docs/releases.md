@@ -28,6 +28,15 @@ All packaging commands use `--publish never`. Build from the same commit and loc
 
 The NSIS toolset is pinned to `1.2.1` in `electron-builder.json`, providing a native installer compiler on Apple Silicon as well as Windows and Linux. This avoids the legacy compiler's Intel-only macOS binary. Windows packages built here remain unsigned until a Windows signing identity is configured.
 
+The Windows build commands use `scripts/dist-win.js` to set
+`ELECTRON_BUILDER_7Z_FILTER=BCJ` automatically. With the pinned electron-builder
+26.15.3, the default ARM64 archive filter is unsupported by the NSIS extractor:
+installation can report success while omitting the executable and DLLs. See
+[upstream issue #9983](https://github.com/electron-userland/electron-builder/issues/9983).
+Verify an actual ARM64 installation, including the executable, before uploading.
+The custom uninstaller removes the `rinku` protocol registration only when its
+command points to the installation being removed; update installs preserve it.
+
 Verify the combined directory and generate download checksums:
 
 ```sh

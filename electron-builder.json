@@ -33,6 +33,7 @@
     "icon": "build/icon.ico"
   },
   "nsis": {
+    "include": "build/installer.nsh",
     "artifactName": "rinku_${version}_${os}.${ext}",
     "buildUniversalInstaller": true
   },
