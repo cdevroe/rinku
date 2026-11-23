@@ -1,6 +1,6 @@
 !macro RemoveOwnedRinkuProtocol ROOT
   ReadRegStr $0 ${ROOT} "Software\Classes\rinku\shell\open\command" ""
-  ${If} $0 == '$"$INSTDIR\${APP_EXECUTABLE_FILENAME}$" $"%1$"'
+  ${If} $0 == '$\"$INSTDIR\${APP_EXECUTABLE_FILENAME}$\" $\"%1$\"'
     DeleteRegKey ${ROOT} "Software\Classes\rinku"
   ${EndIf}
 !macroend
