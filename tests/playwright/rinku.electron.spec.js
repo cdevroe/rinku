@@ -1208,6 +1208,8 @@ test('keyboard navigation crosses virtualized windows without losing focus', asy
   try {
     app = await launchRinku({ libraryRoot: fixture.libraryRoot });
     const { page } = app;
+    // The library heading appears before its asynchronous index load finishes.
+    await expect(rowByTitle(page, 'Large Library Link 0')).toBeVisible();
     await pressShortcut(app.electronApp, 'L');
     await expect(rowByTitle(page, 'Large Library Link 0').locator('.linkRowMain')).toBeFocused();
     await page.keyboard.press('End');
